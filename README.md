@@ -5,6 +5,55 @@ records are synthetic. The original six-tool demo is kept, and the RAG module ad
 incidents, real text embeddings, a saved FAISS vector index, and an API model that chooses the next
 investigation check from the evidence it has seen.
 
+## Local setup
+
+After cloning, the `.venv` folder will be missing. It is excluded from Git because each
+project copy needs its own Python environment. Create it inside the new clone.
+
+Open Terminal in the cloned project folder, where `pyproject.toml` is located. Use Python 3.12.
+
+1. Create `.venv` and install the application and its dependencies:
+
+```bash
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -e '.[dev]'
+```
+
+2. Prepare RAG by downloading the embedding model and building the FAISS index:
+
+```bash
+.venv/bin/incident-index
+```
+
+3. Run the application and enter your API key at the hidden prompt:
+
+```bash
+.venv/bin/incident-client --mode with-rag --planner openai --ask-key
+```
+
+These commands use the new folder's `.venv` directly; activation is not required. The folder
+is hidden because its name starts with a dot. Use `ls -a` to see it in Terminal.
+
+The downloaded model, index, and saved human decisions are also excluded from Git. Previously
+saved decisions remain in your original project folder. A new clone starts with the five
+synthetic historical cases unless you separately restore your decision database.
+
+Run `incident-index` again after changing the historical data. Investigations read the saved
+index and cached model; they do not download or rebuild them.
+
+### Alternative setup with uv
+
+If you use [uv](https://docs.astral.sh/uv/getting-started/installation/), it can create `.venv`
+and install dependencies from the lock file:
+
+```bash
+uv sync --locked --extra dev
+uv run incident-index
+uv run incident-client --mode with-rag --planner openai --ask-key
+```
+
+The pip route uses the version ranges in `pyproject.toml`; the uv route uses the tested lock file.
+
 ## Save the human decision and action
 
 ```bash
@@ -28,7 +77,7 @@ handling, index recovery, and the difference between save approval and cause con
 
 ## Demo without and with RAG
 
-After completing Fresh setup below, open Terminal in the project folder and run each command:
+After completing Local setup above, open Terminal in the project folder and run each command:
 
 ```bash
 .venv/bin/incident-client --mode without-rag --planner openai --ask-key
@@ -103,31 +152,6 @@ fixed messages and safe status numbers. It never prints the API key or raw
 provider response. It keeps API retries disabled and does not silently switch to the demo planner.
 The settlement HTTP 503 in the synthetic logs is separate from an OpenAI request failure.
 See the [official OpenAI error guide](https://developers.openai.com/api/docs/guides/error-codes).
-
-## Fresh setup
-
-Use Python 3.12 and [uv](https://docs.astral.sh/uv/getting-started/installation/):
-
-```bash
-uv sync --locked --extra dev
-uv run incident-index
-uv run incident-client --mode with-rag --planner openai --ask-key
-```
-
-The explicit `incident-index` step downloads the small embedding model, creates one vector for
-each seed incident and saved human decision, and saves the index. Run it again after changing the historical data.
-Searches read the saved index and cached model; they do not download or rebuild them.
-
-An alternative with an existing Python 3.12 installation:
-
-```bash
-python3.12 -m venv .venv
-.venv/bin/python -m pip install -e '.[dev]'
-.venv/bin/incident-index
-.venv/bin/incident-client --mode with-rag --planner openai --ask-key
-```
-
-The pip route uses the version ranges in `pyproject.toml`; the uv route uses the tested lock file.
 
 ## What the RAG example shows
 
