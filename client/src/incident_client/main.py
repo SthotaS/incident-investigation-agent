@@ -9,7 +9,7 @@ import sys
 from functools import partial
 from getpass import getpass
 
-from incident_common.models import AuditEntry, InvestigationRequest, ToolName
+from incident_common.models import AuditEntry, InvestigationRequest, SkippedCheck, ToolName
 from pydantic import ValidationError
 
 from incident_client.config import Settings
@@ -20,8 +20,18 @@ from incident_client.policy import DemoPlanner
 from incident_client.reporting import render_cause_assessments, render_progress, render_summary
 
 
-def _progress(entry: AuditEntry, *, verbose: bool = False) -> None:
+def _progress(entry: AuditEntry | SkippedCheck, *, verbose: bool = False) -> None:
     print(render_progress(entry, verbose=verbose), file=sys.stderr)
+
+
+def _rag_control(args: argparse.Namespace) -> dict:
+    enabled = getattr(args, "use_rag", None)
+    if enabled is None:
+        return {"mode": args.mode or "legacy"}
+    control = {"use_rag": enabled}
+    if args.mode is not None:
+        control["mode"] = args.mode
+    return control
 
 
 async def _run(args: argparse.Namespace, settings: Settings) -> int:
@@ -45,7 +55,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
             incident_id=args.incident_id,
             transaction_id=args.transaction_id,
             scope=args.scope,
-            mode=args.mode,
+            **_rag_control(args),
         )
         planner = OpenAIPlanner() if args.planner == "openai" else DemoPlanner()
         try:
@@ -107,7 +117,13 @@ def main() -> None:
     parser.add_argument("--incident-id", default="INC-10234")
     parser.add_argument("--transaction-id", default="TX784521")
     parser.add_argument("--scope", choices=["full", "status"], default="full")
-    parser.add_argument("--mode", choices=["legacy", "without-rag", "with-rag"], default="legacy")
+    parser.add_argument("--mode", choices=["legacy", "without-rag", "with-rag"], default=None)
+    parser.add_argument(
+        "--use-rag",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Search past incidents; --no-use-rag skips the knowledge database",
+    )
     parser.add_argument("--planner", choices=["demo", "openai"], default=None)
     parser.add_argument(
         "--ask-key", action="store_true", help="Read an API key without echoing or saving it"
@@ -120,7 +136,11 @@ def main() -> None:
         help="Show full evidence, source links, and action details",
     )
     args = parser.parse_args()
-    args.planner = args.planner or ("demo" if args.mode == "legacy" else "openai")
+    try:
+        request = InvestigationRequest(**_rag_control(args))
+    except ValidationError:
+        parser.error("mode and use_rag must agree.")
+    args.planner = args.planner or ("demo" if request.mode == "legacy" else "openai")
     if args.ask_key:
         os.environ["OPENAI_API_KEY"] = getpass("OpenAI API key (hidden, not saved): ").strip()
     try:
@@ -130,7 +150,7 @@ def main() -> None:
             incident_id=args.incident_id,
             transaction_id=args.transaction_id,
             scope=args.scope,
-            mode=args.mode,
+            **_rag_control(args),
         )
     except ValidationError:
         parser.error("Invalid incident ID, transaction ID, or runtime settings.")

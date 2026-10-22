@@ -77,6 +77,35 @@ handling, index recovery, and the difference between save approval and cause con
 
 ## Demo without and with RAG
 
+Both runs use the same investigation engine, selected model, investigation rules, and
+current-data tools. The boolean only controls retrieval of past incidents:
+
+```python
+InvestigationRequest(use_rag=False)
+InvestigationRequest(use_rag=True)
+```
+
+```bash
+.venv/bin/incident-client --no-use-rag --planner openai --ask-key
+.venv/bin/incident-client --use-rag --planner openai --ask-key
+```
+
+The existing `--mode without-rag` and `--mode with-rag` commands remain supported.
+Conflicting mode and boolean options are rejected. With no mode or flag, the original
+legacy demo remains the default.
+
+When retrieval is disabled, progress shows the skipped check after logs:
+
+```text
+[Skipped] Similar incidents: RAG disabled; knowledge database not checked.
+[3/8] Trace: found; ...
+```
+
+Only actual tool attempts (including retries) receive call numbers. A skipped check
+neither uses a call nor counts as an empty search or a step without new evidence.
+JSON reports expose `use_rag` and `skipped_checks` separately from the tool-call `audit`.
+A status-only run or a run stopped before reaching retrieval has no skipped check.
+
 After completing Local setup above, open Terminal in the project folder and run each command:
 
 ```bash

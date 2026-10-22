@@ -4,7 +4,7 @@ import re
 from textwrap import shorten
 
 from incident_common.hypothesis_models import CauseAssessment
-from incident_common.models import AuditEntry, InvestigationReport, Source, ToolName
+from incident_common.models import AuditEntry, InvestigationReport, SkippedCheck, Source, ToolName
 
 _TOOL_LABELS = {
     ToolName.TRANSACTION: "Transaction",
@@ -36,7 +36,9 @@ _CHECK_LABELS = {
 }
 
 
-def render_progress(entry: AuditEntry, *, verbose: bool = False) -> str:
+def render_progress(entry: AuditEntry | SkippedCheck, *, verbose: bool = False) -> str:
+    if isinstance(entry, SkippedCheck):
+        return f"[Skipped] {_TOOL_LABELS[entry.tool]}: {entry.reason}"
     if verbose:
         lines = [
             f"[{entry.call_number}/8] {entry.tool.value}: {entry.status}",

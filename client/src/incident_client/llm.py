@@ -132,7 +132,7 @@ class OpenAIPlanner:
         payload = {
             # The model sees evidence and available tools, not a label telling it to
             # manufacture a difference between the two comparison runs.
-            "request": request.model_dump(mode="json", exclude={"mode"}),
+            "request": request.model_dump(mode="json", exclude={"mode", "use_rag"}),
             "allowed_tools": [
                 {"name": tool.value, "purpose": TOOL_DESCRIPTIONS[tool]} for tool in allowed
             ],

@@ -6,7 +6,15 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    JsonValue,
+    StrictBool,
+    field_validator,
+    model_validator,
+)
 
 from incident_common.hypothesis_models import CauseAssessment
 from incident_common.rag_models import RetrievalInfo
@@ -152,6 +160,32 @@ class InvestigationRequest(BaseModel):
     transaction_id: TransactionId = "TX784521"
     scope: Literal["full", "status"] = "full"
     mode: Literal["legacy", "without-rag", "with-rag"] = "legacy"
+    use_rag: StrictBool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_rag_control(cls, value):
+        if not isinstance(value, dict):
+            return value
+        value = dict(value)
+        if "use_rag" in value:
+            enabled = value["use_rag"]
+            if not isinstance(enabled, bool):
+                raise ValueError("use_rag must be True or False.")
+            mode = "with-rag" if enabled else "without-rag"
+            if "mode" in value and value["mode"] != mode:
+                raise ValueError("mode and use_rag must agree.")
+            value["mode"] = mode
+        else:
+            value["use_rag"] = value.get("mode") == "with-rag"
+        return value
+
+
+class SkippedCheck(BaseModel):
+    """A policy decision, never an attempted tool call or an empty result."""
+
+    tool: Literal[ToolName.SIMILAR] = ToolName.SIMILAR
+    reason: str = "RAG disabled; knowledge database not checked."
 
 
 class AuditEntry(BaseModel):
@@ -190,6 +224,8 @@ class ModelUsage(BaseModel):
 class InvestigationReport(BaseModel):
     run_id: str
     mode: str = "legacy"
+    use_rag: bool = False
+    skipped_checks: list[SkippedCheck] = Field(default_factory=list)
     planner: str = "demo"
     model: str | None = None
     model_calls: int = 0

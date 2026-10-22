@@ -14,6 +14,7 @@ from incident_common.models import (
     InvestigationReport,
     InvestigationRequest,
     ModelUsage,
+    SkippedCheck,
     Source,
     ToolName,
     ToolResult,
@@ -90,26 +91,46 @@ class InvestigationEngine:
     async def run(
         self,
         request: InvestigationRequest,
-        on_progress: Callable[[AuditEntry], None] | None = None,
+        on_progress: Callable[[AuditEntry | SkippedCheck], None] | None = None,
     ) -> InvestigationReport:
         memory = InvestigationMemory()
+        skipped_checks: list[SkippedCheck] = []
         while True:
+            if (
+                request.mode != "legacy"
+                and not request.use_rag
+                and request.scope == "full"
+                and ToolName.LOGS in memory.results
+                and not skipped_checks
+            ):
+                skipped = SkippedCheck()
+                skipped_checks.append(skipped)
+                if on_progress:
+                    on_progress(skipped)
             transaction = memory.results.get(ToolName.TRANSACTION)
             if transaction and transaction.status == "empty":
-                return self._report(request, memory, "paused", "transaction_not_found")
+                return self._report(
+                    request, memory, skipped_checks, "paused", "transaction_not_found"
+                )
             if request.scope == "status" and transaction:
                 if _source_is_relevant(memory, Source.TRANSACTIONS):
-                    return self._report(request, memory, "finished", "request_answered")
-                return self._report(request, memory, "paused", "insufficient_evidence")
+                    return self._report(
+                        request, memory, skipped_checks, "finished", "request_answered"
+                    )
+                return self._report(
+                    request, memory, skipped_checks, "paused", "insufficient_evidence"
+                )
             if memory.has_facts(
                 ToolName.LOGS, http_status=503, service="settlement"
             ) and memory.has_facts(ToolName.TRACES, successful_response=True, service="settlement"):
-                return self._report(request, memory, "paused", "conflicting_evidence")
+                return self._report(
+                    request, memory, skipped_checks, "paused", "conflicting_evidence"
+                )
             if memory.no_new_evidence_count >= self.limits.max_steps_without_evidence:
-                return self._report(request, memory, "paused", "no_new_evidence")
+                return self._report(request, memory, skipped_checks, "paused", "no_new_evidence")
 
             if len(memory.audit) >= self.limits.max_tool_calls:
-                return self._report(request, memory, "paused", "call_budget")
+                return self._report(request, memory, skipped_checks, "paused", "call_budget")
             action = None
             allowed = available_tools(request, memory)
             retrying = False
@@ -119,27 +140,35 @@ class InvestigationEngine:
                     action = Action(failed, "Retry the failed tool while calls remain.")
                     retrying = True
                 else:
-                    return self._report(request, memory, "paused", "tool_retry_limit")
+                    return self._report(
+                        request, memory, skipped_checks, "paused", "tool_retry_limit"
+                    )
             else:
                 try:
                     choice = self.planner.choose(request, memory)
                     action = await choice if inspect.isawaitable(choice) else choice
                 except PlannerError as exc:
-                    report = self._report(request, memory, "paused", "planner_error")
+                    report = self._report(
+                        request, memory, skipped_checks, "paused", "planner_error"
+                    )
                     report.planner_error = str(exc)
                     return report
                 except Exception:
-                    report = self._report(request, memory, "paused", "planner_error")
+                    report = self._report(
+                        request, memory, skipped_checks, "paused", "planner_error"
+                    )
                     report.planner_error = "The planner could not produce a safe next check."
                     return report
             if action is None:
                 if allowed:
-                    report = self._report(request, memory, "paused", "planner_error")
+                    report = self._report(
+                        request, memory, skipped_checks, "paused", "planner_error"
+                    )
                     report.planner_error = (
                         "The planner stopped before the required checks finished."
                     )
                     return report
-                return self._report(request, memory, "finished", "request_answered")
+                return self._report(request, memory, skipped_checks, "finished", "request_answered")
             known_references = {
                 record.reference for result in memory.results.values() for record in result.records
             }
@@ -157,11 +186,11 @@ class InvestigationEngine:
                     for reference in action.evidence_references
                 )
             ):
-                report = self._report(request, memory, "paused", "planner_error")
+                report = self._report(request, memory, skipped_checks, "paused", "planner_error")
                 report.planner_error = "The planner selected an invalid check or unknown evidence."
                 return report
             if len(memory.audit) >= self.limits.max_tool_calls:
-                return self._report(request, memory, "paused", "call_budget")
+                return self._report(request, memory, skipped_checks, "paused", "call_budget")
 
             # Reserve a call before execution, including calls that fail or time out.
             call_number = len(memory.audit) + 1
@@ -234,6 +263,7 @@ class InvestigationEngine:
         self,
         request: InvestigationRequest,
         memory: InvestigationMemory,
+        skipped_checks: list[SkippedCheck],
         status: str,
         stop_reason: str,
     ) -> InvestigationReport:
@@ -310,6 +340,8 @@ class InvestigationEngine:
         return InvestigationReport(
             run_id=str(uuid4()),
             mode=request.mode,
+            use_rag=request.use_rag,
+            skipped_checks=skipped_checks,
             planner=getattr(self.planner, "name", "demo"),
             model=getattr(self.planner, "model", None),
             model_calls=getattr(self.planner, "calls", 0),
@@ -345,7 +377,7 @@ class InvestigationEngine:
             missing_sources=[
                 s
                 for s in Source
-                if not (request.mode == "without-rag" and s == Source.HISTORY)
+                if not (not request.use_rag and request.mode != "legacy" and s == Source.HISTORY)
                 and not _source_is_relevant(memory, s)
             ],
             next_steps=next_steps,

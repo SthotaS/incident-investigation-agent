@@ -42,7 +42,7 @@ def available_tools(request: InvestigationRequest, memory: InvestigationMemory) 
         return []
     if ToolName.LOGS not in memory.results:
         return [ToolName.LOGS]
-    if request.mode == "with-rag" and ToolName.SIMILAR not in memory.results:
+    if request.use_rag and ToolName.SIMILAR not in memory.results:
         return [ToolName.SIMILAR]
     remaining = [
         tool
@@ -188,7 +188,7 @@ def prioritize_checks(
         rankings[tool] = [rank, reason, refs, causes]
 
     # A historical hint is useful before stronger current evidence separates the causes.
-    history = memory.results.get(ToolName.SIMILAR) if request.mode == "with-rag" else None
+    history = memory.results.get(ToolName.SIMILAR) if request.use_rag else None
     if (
         history
         and not local_error

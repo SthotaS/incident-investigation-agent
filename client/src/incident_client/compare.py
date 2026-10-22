@@ -54,11 +54,12 @@ async def run_comparison(
     settings = Settings.from_environment()
     reports = []
     async with connect(settings.tool_timeout_seconds) as gateway:
-        for mode in ("without-rag", "with-rag"):
+        for use_rag in (False, True):
             planner = OpenAIPlanner() if planner_name == "openai" else DemoPlanner()
             try:
                 report = await InvestigationEngine(gateway, planner=planner).run(
-                    InvestigationRequest(mode=mode), on_progress=partial(_progress, verbose=verbose)
+                    InvestigationRequest(use_rag=use_rag),
+                    on_progress=partial(_progress, verbose=verbose),
                 )
                 reports.append(report)
             finally:
