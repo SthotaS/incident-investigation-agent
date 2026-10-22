@@ -1,0 +1,137 @@
+{
+  "verified_on": "2026-10-22",
+  "python": "3.12.14",
+  "packages": {
+    "mcp": "1.30.0",
+    "openai": "2.54.0",
+    "fastembed": "0.7.4",
+    "faiss-cpu": "1.15.1",
+    "pydantic": "2.14.1",
+    "filelock": "4.2.4"
+  },
+  "ruff_check": "passed",
+  "ruff_format_check": "passed",
+  "pytest": {
+    "command": "RUN_RAG_INTEGRATION=1 .venv/bin/python -m pytest -q",
+    "passed": 366
+  },
+  "wheel_build": "passed",
+  "historical_documents": 5,
+  "real_embeddings_and_faiss": "verified",
+  "real_mcp_comparison": "verified using explicit demo planner",
+  "api_tests": "mock decisions and mock HTTP transport through real SDK; no live API call",
+  "live_openai_execution": "Not run during this review. User previously shared a successful API run; automated API checks use fake responses and mock SDK transport.",
+  "comparison": {
+    "without_rag_next_check": "get_trace",
+    "with_rag_next_check": "get_monitoring",
+    "next_check_changed": true,
+    "changed_step_cites_history": true,
+    "difference_demonstrated": true,
+    "note": "The next check changed and its action summary cites a retrieved past case."
+  },
+  "human_knowledge": {
+    "database": "SQLite at data/knowledge/incidents.sqlite3; created on first approved save",
+    "human_cli": "incident-knowledge save",
+    "storage_fields": [
+      "human_decision",
+      "action_taken",
+      "outcome",
+      "approved_by",
+      "saved_at"
+    ],
+    "real_embedding_mcp_smoke": "passed in an isolated synthetic database",
+    "current_incident_exclusion": "passed",
+    "index_failure_preserves_record": "passed",
+    "main_database_records_added_during_build": 0,
+    "api_key_needed_for_save": false
+  },
+  "investigation_priorities": {
+    "evidence_based_priorities": "verified for demo and mocked API decisions",
+    "timed_monitoring_sample": {
+      "checked": 6,
+      "failed": 4,
+      "succeeded_before_error_start": 2
+    },
+    "cause_reports": "Verified in terminal text and JSON on stdout with source references and evidence gaps.",
+    "incomplete_deployment_and_missing_monitoring": "cannot be presented as evidence of absence or a wider failure",
+    "demo_mcp_runs": "passed; baseline 5 calls and RAG 6 calls",
+    "safety_rules": "8 attempts including retries and RAG, 2 no-evidence pause, logs plus trace, human root-cause and save approval preserved",
+    "existing_sqlite_and_faiss": "Content hashes unchanged; 4 saved human decisions preserved in this review.",
+    "live_api": "not run; API planning tested with fake responses and real SDK mock transport"
+  },
+  "console_output": {
+    "default": "short progress and final summary",
+    "verbose_flag": "--verbose shows full action reasons, evidence, and source references",
+    "json_flag": "--json retains full report and suppresses progress",
+    "real_mcp_rag_demo": "short and verbose commands both passed; 12 vs 67 final-summary lines",
+    "paused_api_scenario": "mocked API error stays paused at 3/8; failure point not established",
+    "data_preserved": "existing SQLite records and FAISS index hashes unchanged",
+    "live_api": "not run; output change does not fix the reported API failure",
+    "comparison_output": "Terminal results only; report-file generation removed."
+  },
+  "api_error_reporting": {
+    "messages": "safe fixed categories for HTTP, connection, timeout, output validation, and unknown client errors",
+    "new_boundary_tests": 22,
+    "real_sdk_mock_transport": "verified; no network or paid API requests",
+    "first_api_failure": "pauses after 3 successful RAG tool calls, with 1 model attempt",
+    "redaction": "no API key, raw error body, unknown code, or request ID in displayed message or report",
+    "behavior": "same model, max_retries=0, tool budget, two-source rule, and engineer approvals",
+    "actual_user_error": "User previously reported HTTP 429, then shared a successful run after adding API credit; not rechecked live during this review.",
+    "additional_429_tests": 14,
+    "429_support": {
+      "specific_codes": [
+        "insufficient_quota",
+        "credit_balance_exhausted",
+        "organization_spend_limit_exceeded",
+        "project_spend_limit_exceeded",
+        "organization_usage_limit_exceeded",
+        "rate_limit_exceeded",
+        "slow_down"
+      ],
+      "fallback": "known error.type when error.code is absent or unrecognized",
+      "precedence": "specific recognized code before broader error type",
+      "account_state": "actual user credit balance and limits remain unverified"
+    }
+  },
+  "production_hardening": {
+    "engine": "Rejects invalid, premature and repeated planner actions; revalidates tool evidence; counts unexpected tool failures; requires separate current log and trace references.",
+    "data_contracts": "Bounded JSON payloads, records, references and monitoring samples; valid timestamps and matching transaction/source; rejects historical/current mixing and unsafe controls.",
+    "storage": "Approved records remain immutable; capacity check inside a SQLite write transaction; reference and read limits.",
+    "index": "Complete immutable generations, one atomic pointer, process build lock, bounded reads, corpus recheck, and backward-compatible legacy loading.",
+    "api": "Configurable deadline, input-size and request limits; disabled SDK retries; safe construction errors; actual provider usage with measurement coverage.",
+    "checks": {
+      "full_pytest_passed": 366,
+      "ruff": "passed",
+      "wheel": "passed",
+      "locked_offline_sync": "passed",
+      "real_mcp_demo_calls": {
+        "without_rag": 5,
+        "with_rag": 6
+      },
+      "real_paused_cli_exit_code": 2
+    },
+    "preserved_data": {
+      "human_records": 4,
+      "sqlite_content_hash_unchanged": true,
+      "legacy_metadata_hash_unchanged": true,
+      "legacy_faiss_hash_unchanged": true
+    },
+    "backup": "Source and SQLite snapshot retained outside project in the chat workspace work/production-review-backup.",
+    "ci": "Updated existing Checks workflow with pinned actions and uv; locally equivalent checks passed; GitHub execution not run.",
+    "scope": "Local synthetic capstone. Real deployment still needs authenticated approval roles, secure live connectors, secret management, operations and recovery testing.",
+    "terminal_output": "Client and comparison display results in Terminal. The client supports JSON on stdout. File-export code and its related tests have been removed; paused runs exit 2."
+  },
+  "terminal_demo": {
+    "reports_folder": "removed from project; archived outside the project",
+    "test_total": 366,
+    "real_demo_comparison": "finished without creating reports/; trace without RAG, monitoring with RAG",
+    "database_and_index": "content hashes unchanged",
+    "live_api": "not run during this change; use OpenAI commands for submission screenshots",
+    "file_generation": "Removed from both command-line entry points.",
+    "removed_export_files": [
+      "client/src/incident_client/report_files.py",
+      "tests/test_comparison_output.py"
+    ],
+    "remaining_tests": "Kept investigation, RAG, storage, API, terminal output, exit-code, and security checks."
+  }
+}

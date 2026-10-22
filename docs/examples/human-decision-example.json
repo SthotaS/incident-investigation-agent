@@ -1,0 +1,17 @@
+{
+  "incident_id": "INC-11001",
+  "title": "Synthetic example: settlement HTTP 503 and delayed completion",
+  "symptoms": "A synthetic billing transaction stayed SETTLEMENT_SENT for more than 24 hours. Settlement calls returned HTTP 503 and retries did not succeed. Billing stayed healthy.",
+  "service": "settlement",
+  "human_decision": "Wait for settlement service recovery, then review whether manual replay is safe.",
+  "action_taken": "In this invented example, an engineer checked recovery and manually replayed the transaction once.",
+  "outcome": "resolved",
+  "approved_by": "Synthetic Example Engineer",
+  "confirmed_root_cause": "In this invented example, the engineer confirmed temporary settlement service unavailability.",
+  "evidence_references": [
+    "synthetic://examples/INC-11001/settlement-check"
+  ],
+  "useful_check": "get_monitoring",
+  "check_reason": "Check current settlement errors and application health before reusing any past action.",
+  "synthetic": true
+}

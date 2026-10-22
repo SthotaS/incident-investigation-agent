@@ -1,0 +1,62 @@
+[
+  {
+    "incident_id": "INC-09876",
+    "title": "Billing settlement requests return HTTP 503",
+    "symptoms": "A billing transaction remained SETTLEMENT_SENT for more than 24 hours. Settlement requests returned HTTP 503 Service Unavailable. Processing retries were exhausted without a successful response. The billing application was healthy.",
+    "service": "settlement",
+    "past_root_cause": "An engineer confirmed that the settlement service was unavailable during that past incident.",
+    "useful_check": "get_monitoring",
+    "check_reason": "Check settlement-service errors and application health before exploring a recent application change.",
+    "resolved_at": "2025-12-05T15:00:00Z",
+    "synthetic": true,
+    "reference": "synthetic://incidents/INC-09876"
+  },
+  {
+    "incident_id": "INC-09741",
+    "title": "Card authorization fails after an application release",
+    "symptoms": "Card payment authorization returned HTTP 500 with a local NullPointerException. Failures began immediately after a billing application release. Calls did not reach the card provider.",
+    "service": "billing",
+    "past_root_cause": "An engineer confirmed that a field-mapping error in the application release caused those authorization failures.",
+    "useful_check": "get_deployments",
+    "check_reason": "Compare the first local exception with the application release time and changed fields.",
+    "resolved_at": "2025-11-20T10:00:00Z",
+    "synthetic": true,
+    "reference": "synthetic://incidents/INC-09741"
+  },
+  {
+    "incident_id": "INC-09632",
+    "title": "Payment database lock makes balance updates slow",
+    "symptoms": "Balance updates waited for a database lock and then timed out. Database lock-wait metrics increased. A long-running reconciliation transaction held the affected account rows.",
+    "service": "ledger",
+    "past_root_cause": "An engineer confirmed that a long reconciliation transaction held locks needed by the balance updates.",
+    "useful_check": "get_trace",
+    "check_reason": "Inspect database spans to find where the update waited and compare them with lock metrics.",
+    "resolved_at": "2025-10-17T13:30:00Z",
+    "synthetic": true,
+    "reference": "synthetic://incidents/INC-09632"
+  },
+  {
+    "incident_id": "INC-09508",
+    "title": "Expired access token blocks refund requests",
+    "symptoms": "Refund requests returned HTTP 401 Unauthorized. The access token had expired. The refund provider remained available and accepted requests with a fresh token.",
+    "service": "refund",
+    "past_root_cause": "An engineer confirmed that the token refresh job had stopped, leaving the refund client with an expired access token.",
+    "useful_check": "get_trace",
+    "check_reason": "Check the refund request and authentication response before assuming the provider is unavailable.",
+    "resolved_at": "2025-09-09T09:00:00Z",
+    "synthetic": true,
+    "reference": "synthetic://incidents/INC-09508"
+  },
+  {
+    "incident_id": "INC-09402",
+    "title": "Receipt emails delayed by a growing queue",
+    "symptoms": "Payments completed successfully but receipt emails arrived late. Notification queue depth and oldest-message age increased. Notification workers had stopped reading new messages.",
+    "service": "notifications",
+    "past_root_cause": "An engineer confirmed that stopped notification workers caused the email queue to grow.",
+    "useful_check": "get_monitoring",
+    "check_reason": "Check notification worker health and queue age while keeping completed payment status separate.",
+    "resolved_at": "2025-08-12T16:00:00Z",
+    "synthetic": true,
+    "reference": "synthetic://incidents/INC-09402"
+  }
+]

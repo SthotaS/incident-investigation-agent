@@ -1,0 +1,43 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "incident-investigation-agent"
+version = "0.1.0"
+description = "Python MCP client and read-only incident tools with synthetic data"
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "mcp>=1.28,<2",
+    "pydantic>=2.11,<3",
+    "faiss-cpu>=1.12,<2",
+    "fastembed>=0.7,<0.8",
+    "openai>=2,<3",
+    "filelock>=3.16,<5",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10", "pytest-asyncio>=1,<2", "ruff>=0.12,<1"]
+
+[project.scripts]
+incident-client = "incident_client.main:main"
+incident-server = "incident_server.mcp_server:main"
+incident-index = "incident_server.rag:main"
+incident-compare = "incident_client.compare:main"
+incident-knowledge = "incident_server.knowledge_cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["server/src/incident_server", "client/src/incident_client", "shared/src/incident_common"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]

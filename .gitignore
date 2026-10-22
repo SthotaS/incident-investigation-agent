@@ -1,0 +1,45 @@
+# Local Python environment and generated files
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Secrets and machine-specific settings; keep the safe configuration example
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Mac metadata and editor temporary files
+.DS_Store
+._*
+*.swp
+*.swo
+*~
+*.tmp
+*.log
+
+# Local output folders
+reports/
+
+# Rebuildable local embedding model and vector index
+data/rag/
+
+# Durable human-approved knowledge: keep locally and back up separately
+data/knowledge/
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*

@@ -1,0 +1,18 @@
+{
+  "incident_id": "INC-10234",
+  "title": "Billing transaction stuck in SETTLEMENT_SENT",
+  "symptoms": "TX784521 stayed SETTLEMENT_SENT for 26 hours. Settlement requests returned HTTP 503.",
+  "service": "settlement",
+  "human_decision": "",
+  "action_taken": "",
+  "outcome": "unknown",
+  "approved_by": "",
+  "confirmed_root_cause": null,
+  "evidence_references": [
+    "synthetic://transactions/TX784521",
+    "synthetic://logs/TX784521/503"
+  ],
+  "useful_check": "get_monitoring",
+  "check_reason": "Check current settlement errors and application health before reusing any past action.",
+  "synthetic": true
+}
