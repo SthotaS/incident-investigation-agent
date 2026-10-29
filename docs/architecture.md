@@ -68,18 +68,24 @@ read evidence, choose one useful check, observe the result, then update or stop.
 several possible causes open without building a tree. The API planner chooses among allowed
 checks; the demo uses repeatable Python rules. Both use the same tool and evidence checks.
 
-We tried Tree of Thoughts (ToT) with beam search on synthetic INC-10234 / TX784521, using RAG
-in both runs. The ordinary loop and the ToT trial each used six tool calls in the same order:
+Breadth-first search (BFS) is an option for a Tree of Thoughts (ToT) design. It explores
+candidate paths level by level before moving deeper. With only three possible causes,
+BFS would be reasonable to consider. We did not implement or test BFS, so we cannot claim
+that it would improve or worsen this agent's results.
+
+In the earlier ToT trial on synthetic INC-10234 / TX784521, RAG was enabled in both runs.
+The ordinary loop and the ToT trial each used six tool calls in the same order:
 transaction, logs, similar incidents, monitoring, trace, and deployments. Both supported the
 settlement-service call as the failure point; neither confirmed the underlying root cause.
 This local demo used Python planning rules and real MCP tools. It did not measure paid model
 cost, model variability, or production accuracy.
 
 For this use case, the main gap is missing current evidence. Generating more paths cannot
-explain a settlement HTTP 503 without the service data needed to test its cause. ToT added
-branch scores and pruning rules without improving the observed checks or finding. Those
-scores were planning points, not the chance that a cause was correct. Keeping the tree would
-add code and state to maintain; extra model planning could also add cost and delay.
+explain a settlement HTTP 503 without the service data needed to test its cause. A ToT design
+using BFS would still need to store candidate paths, decide which checks to expand, and
+manage search limits. More planning could add cost and delay without supplying the missing
+evidence. These are design concerns, not measured BFS results. The current loop can track
+all three possible causes and choose a useful check without a tree.
 
 The ordinary loop still adapts: a matching past incident can suggest monitoring first,
 while a current local error makes recent changes more useful to check. RAG can change that
@@ -87,9 +93,9 @@ choice without ToT. Current logs and a separate trace must support a settlement 
 The engineer still confirms root cause, performs any fix, and explicitly approves a save.
 
 ToT may help a future workflow with many competing paths or conflicting evidence. We would
-reconsider it if wider tests showed better findings or fewer useful checks to reach them.
-For the current small workflow, the simpler loop is easier to test and explain. The ToT
-planner, tree records, command option, and its LangChain dependency have been removed.
+compare a BFS-based ToT design with the ordinary loop on those cases before adopting it.
+The comparison would check finding quality, tool calls, and unsupported conclusions.
+For the current small workflow, the simpler loop is easier to test and explain. For this use case, the ReAct loop provides the needed step-by-step reasoning and is easier to test and explain.
 
 ### Compare transactions in the same time window
 
