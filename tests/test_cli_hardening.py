@@ -48,6 +48,38 @@ async def test_finished_status_request_returns_zero(results, monkeypatch, capsys
     assert json.loads(capsys.readouterr().out)["calls_used"] == 1
 
 
+@pytest.mark.parametrize("reasoning", ["linear", "tot"])
+async def test_reasoning_modes_return_clean_json_without_saving_files(
+    reasoning, results, monkeypatch, capsys, tmp_path
+):
+    install_console_gateway(monkeypatch, results)
+    monkeypatch.chdir(tmp_path)
+    args = cli_args(json_output=True)
+    args.planner, args.mode, args.reasoning = "demo", "without-rag", reasoning
+
+    assert await cli._run(args, Settings()) == 0
+
+    console = capsys.readouterr()
+    report = json.loads(console.out)
+    assert report["reasoning"] == reasoning and report["calls_used"] == 5
+    assert bool(report["thought_searches"]) == (reasoning == "tot")
+    assert console.err == "" and list(tmp_path.iterdir()) == []
+
+
+def test_client_parser_passes_tot_option_to_the_shared_engine(monkeypatch):
+    captured = []
+
+    async def run(args, settings):
+        captured.append(args.reasoning)
+        return 0
+
+    monkeypatch.setattr(cli, "_run", run)
+    monkeypatch.setattr(sys, "argv", ["incident-client", "--reasoning", "tot", "--planner", "demo"])
+    with pytest.raises(SystemExit) as result:
+        cli.main()
+    assert result.value.code == 0 and captured == ["tot"]
+
+
 def test_client_main_returns_the_investigation_exit_code(monkeypatch):
     async def paused(args, settings):
         return 2
@@ -116,7 +148,10 @@ async def test_discovery_timeout_is_bounded_and_safe():
 
 
 @pytest.mark.parametrize("paused", [False, True])
-def test_comparison_displays_results_without_creating_files(paused, monkeypatch, tmp_path, capsys):
+@pytest.mark.parametrize("reasoning", ["linear", "tot"])
+def test_comparison_displays_results_without_creating_files(
+    paused, reasoning, monkeypatch, tmp_path, capsys
+):
     reports = [
         InvestigationReport(
             run_id=f"synthetic-{mode}",
@@ -132,7 +167,9 @@ def test_comparison_displays_results_without_creating_files(paused, monkeypatch,
     runner = AsyncMock(return_value=tuple(reports))
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(compare, "run_comparison", runner)
-    monkeypatch.setattr(sys, "argv", ["incident-compare", "--planner", "demo"])
+    monkeypatch.setattr(
+        sys, "argv", ["incident-compare", "--planner", "demo", "--reasoning", reasoning]
+    )
 
     if paused:
         with pytest.raises(SystemExit) as result:
@@ -141,7 +178,7 @@ def test_comparison_displays_results_without_creating_files(paused, monkeypatch,
     else:
         compare.main()
 
-    runner.assert_awaited_once_with("demo", verbose=False)
+    runner.assert_awaited_once_with("demo", verbose=False, reasoning=reasoning)
     assert list(tmp_path.iterdir()) == []
     output = capsys.readouterr()
     assert "Without RAG:" in output.out and "with RAG:" in output.out

@@ -5,6 +5,7 @@ from textwrap import shorten
 
 from incident_common.hypothesis_models import CauseAssessment
 from incident_common.models import AuditEntry, InvestigationReport, SkippedCheck, Source, ToolName
+from incident_common.tot_models import ToTProgress
 
 _TOOL_LABELS = {
     ToolName.TRANSACTION: "Transaction",
@@ -36,7 +37,11 @@ _CHECK_LABELS = {
 }
 
 
-def render_progress(entry: AuditEntry | SkippedCheck, *, verbose: bool = False) -> str:
+def render_progress(
+    entry: AuditEntry | SkippedCheck | ToTProgress, *, verbose: bool = False
+) -> str:
+    if isinstance(entry, ToTProgress):
+        return render_thought_search(entry, verbose=verbose)
     if isinstance(entry, SkippedCheck):
         return f"[Skipped] {_TOOL_LABELS[entry.tool]}: {entry.reason}"
     if verbose:
@@ -81,6 +86,8 @@ def render_summary(report: InvestigationReport) -> str:
         report.mode, report.mode
     )
     lines = [f"{report.incident_id} / {report.transaction_id} | {mode}"]
+    if report.reasoning == "tot":
+        lines.append("Reasoning: ToT beam search; planning scores are not cause probabilities.")
     if report.model:
         lines.append(f"Model: {report.model}")
         if report.model_usage.measured_responses:
@@ -140,6 +147,32 @@ def render_summary(report: InvestigationReport) -> str:
         lines.append("Next: " + shorten(report.next_steps[0], width=150, placeholder="..."))
     lines.append("Root cause: not confirmed. Fixes are manual; saving needs engineer approval.")
     lines.append("Full details: add --verbose; full data: add --json.")
+    return "\n".join(lines)
+
+
+def render_thought_search(event: ToTProgress, *, verbose: bool = False) -> str:
+    search = event.search
+    label = (
+        _TOOL_LABELS[ToolName(search.selected_tool)] if search.selected_tool else "engineer review"
+    )
+    causes = [node for node in search.nodes if node.depth == 1]
+    pruned = sum(node.status == "pruned" for node in search.nodes)
+    lines = [
+        f"[ToT {search.search_number}] Compared {len(causes)} causes; "
+        f"beam {search.limits.beam_width}, max depth {search.limits.max_depth}. Next: {label}.",
+        "  Planning scores: "
+        + "; ".join(f"{_CAUSE_LABELS[node.cause_id]} {node.score}" for node in causes)
+        + f". Pruned plans: {pruned}; causes are not ruled out.",
+    ]
+    if verbose:
+        for node in search.nodes:
+            if node.depth == 0:
+                continue
+            path = " -> ".join(node.planned_tools) or _CAUSE_LABELS[node.cause_id]
+            lines.append(f"  {node.node_id}: {path}; score {node.score}; {node.status}.")
+            lines.append(f"    {node.reason}")
+            if node.evidence_references:
+                lines.append("    Sources: " + ", ".join(node.evidence_references))
     return "\n".join(lines)
 
 

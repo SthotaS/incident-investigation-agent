@@ -47,7 +47,7 @@ def comparison_details(before: InvestigationReport, after: InvestigationReport) 
 
 
 async def run_comparison(
-    planner_name: str, *, verbose: bool = False
+    planner_name: str, *, verbose: bool = False, reasoning: str = "linear"
 ) -> tuple[InvestigationReport, InvestigationReport]:
     if planner_name == "openai" and not os.getenv("OPENAI_API_KEY", "").strip():
         raise PlannerError("Use --ask-key or set OPENAI_API_KEY before running the API comparison.")
@@ -56,6 +56,10 @@ async def run_comparison(
     async with connect(settings.tool_timeout_seconds) as gateway:
         for use_rag in (False, True):
             planner = OpenAIPlanner() if planner_name == "openai" else DemoPlanner()
+            if reasoning == "tot":
+                from incident_client.tot import ToTPlanner
+
+                planner = ToTPlanner(planner)
             try:
                 report = await InvestigationEngine(gateway, planner=planner).run(
                     InvestigationRequest(use_rag=use_rag),
@@ -63,8 +67,9 @@ async def run_comparison(
                 )
                 reports.append(report)
             finally:
-                if isinstance(planner, OpenAIPlanner):
-                    await planner.aclose()
+                close = getattr(planner, "aclose", None)
+                if close is not None:
+                    await close()
     return reports[0], reports[1]
 
 
@@ -73,11 +78,14 @@ def main() -> None:
     parser.add_argument("--planner", choices=["openai", "demo"], default="openai")
     parser.add_argument("--ask-key", action="store_true", help="Read an API key without saving it")
     parser.add_argument("--verbose", action="store_true", help="Show full live action details")
+    parser.add_argument("--reasoning", choices=["linear", "tot"], default="linear")
     args = parser.parse_args()
     if args.ask_key:
         os.environ["OPENAI_API_KEY"] = getpass("OpenAI API key (hidden, not saved): ").strip()
     try:
-        before, after = asyncio.run(run_comparison(args.planner, verbose=args.verbose))
+        before, after = asyncio.run(
+            run_comparison(args.planner, verbose=args.verbose, reasoning=args.reasoning)
+        )
     except KeyboardInterrupt:
         raise SystemExit(130) from None
     except PlannerError as exc:

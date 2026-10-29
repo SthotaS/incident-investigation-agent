@@ -7,6 +7,8 @@ flowchart LR
     Loop <--> Memory[Current investigation memory]
     Loop --> Planner[API planner or explicit demo planner]
     Planner --> API[OpenAI Responses API]
+    Planner --> ToT[Optional LangChain ToT search]
+    ToT --> Memory
     Loop --> Gateway[MCP client]
     Gateway -->|stdio| Server[Read-only MCP server]
     Server --> Current[Synthetic current records]
@@ -60,6 +62,48 @@ A completed monitoring or deployment check is reused as evidence rather than cal
 automatically. Failed tools still follow the retry rules. An empty result or unfinished deployment
 check does not prove that no related change happened. A completed check with no related change
 only makes that explanation less supported within the check's coverage.
+
+### Optional Tree-of-Thought search
+
+Add `--reasoning tot` to use ToT; `linear` remains the default. This adds a planner inside the
+existing client. It does not add another service or change MCP, RAG, or SQLite.
+
+LangChain Core routes three steps: generate possible paths, evaluate/search, and select a check.
+With `--planner openai`, one structured model request generates two or three short candidate
+thoughts. With `--planner demo`, Python generates repeatable candidates without an API key.
+The possible causes are a shared service issue, a transaction-specific issue, and a recent change.
+Python scores and searches them; the existing engine executes only the selected next tool.
+
+The tree starts at current evidence (depth 0). A thought at depth 1 is a possible cause and a
+question to test. Depth 2 adds a planned check; depth 3 adds one further planned check. Future
+results are never assumed. Beam search keeps at most two paths at each level, with at most three
+children per node, depth three, 16 nodes per search, and three searches per investigation.
+After a real observation, the next search uses the updated evidence.
+
+Planning scores range from 0 to 100; they are not the chance that a cause is correct:
+
+| Score part | Rule |
+| --- | --- |
+| Current support | +12 per distinct current reference, up to two |
+| Current evidence against | -10 per distinct current reference, up to two |
+| Current cause state | +12 when current checks mark the cause as possible |
+| Local error lead | +24 toward checking recent changes when logs show a local error and deployments remain unchecked; this does not establish a cause |
+| Relevant past lead | +6 only before a local error, failed trace, or monitoring result gives a stronger current lead |
+| Planned check | Priority adds 18, 12, or 6; matching the cause's next check adds 16, otherwise 8 |
+| Further planned check | Adds 35% of that check's value, rounded |
+
+Unknown references and unavailable tools are rejected. Paths below 10 points are set aside;
+the beam keeps the best two remaining paths. Ties use current support, existing check order,
+fixed cause order, then tool names. Setting a path aside does not rule out its cause. If no
+valid path remains or a search limit is reached, the agent pauses and asks the engineer.
+The usual early-stop, evidence, and retry rules still apply. Every branch shares the same
+eight-tool-call budget; model requests are counted separately with the existing API limits.
+
+The generator role lives in `llm.py`; the evaluator and controller live in `tot.py`. Short-term
+memory and the public tree records hold branch state. LangChain uses LCEL to connect these
+roles. MCP still carries validated tool requests and results; it does not manage the tree.
+CrewAI is not required for this implementation. Terminal progress shows compared causes,
+scores, and the next check. `--verbose` adds branches and references; `--json` includes the tree.
 
 ### Compare transactions in the same time window
 
@@ -130,6 +174,8 @@ This identifies an error category without guessing that a past incident caused t
 | Purpose | Location |
 | --- | --- |
 | API model and checked generated actions | `client/src/incident_client/llm.py` |
+| LangChain ToT evaluation and beam search | `client/src/incident_client/tot.py` |
+| Bounded thoughts and public branch records | `shared/src/incident_common/tot_models.py` |
 | Allowed tools and deterministic demo | `client/src/incident_client/policy.py` |
 | Possible causes, evidence, and missing checks | `client/src/incident_client/hypotheses.py` |
 | Shared cause result display | `client/src/incident_client/reporting.py` |
