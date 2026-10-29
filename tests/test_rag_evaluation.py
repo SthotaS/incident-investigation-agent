@@ -264,9 +264,9 @@ def test_evaluation_cli_defaults_to_demo_prints_json_and_never_exports_files(
 
 @pytest.mark.parametrize(
     "arguments",
-    [["--evaluate", "--reasoning", "tot"], ["--evaluate", "--repeats", "4"], ["--case", "match"]],
+    [["--evaluate", "--repeats", "4"], ["--case", "match"]],
 )
-def test_cli_rejects_confounded_or_unbounded_evaluation_options(arguments, monkeypatch):
+def test_cli_rejects_invalid_or_unbounded_evaluation_options(arguments, monkeypatch):
     monkeypatch.setattr(sys, "argv", ["incident-compare", *arguments])
     with pytest.raises(SystemExit) as result:
         compare.main()

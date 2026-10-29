@@ -116,7 +116,7 @@ partial evidence. Report-file export code has been removed; use terminal screens
 # Six synthetic cases, both modes, real MCP and cached embeddings; no API key.
 .venv/bin/incident-compare --evaluate
 
-# Repeat the paired checks; order alternates, reasoning stays linear.
+# Repeat the paired checks; run order alternates and both use the same investigation loop.
 .venv/bin/incident-compare --evaluate --repeats 3
 
 # A small API comparison, using the same model and rules in both modes.

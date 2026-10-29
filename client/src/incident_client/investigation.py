@@ -19,7 +19,6 @@ from incident_common.models import (
     ToolName,
     ToolResult,
 )
-from incident_common.tot_models import ToTProgress
 from pydantic import ValidationError
 
 from incident_client.hypotheses import assess_causes
@@ -92,9 +91,9 @@ class InvestigationEngine:
     async def run(
         self,
         request: InvestigationRequest,
-        on_progress: Callable[[AuditEntry | SkippedCheck | ToTProgress], None] | None = None,
+        on_progress: Callable[[AuditEntry | SkippedCheck], None] | None = None,
     ) -> InvestigationReport:
-        memory = InvestigationMemory(call_limit=self.limits.max_tool_calls)
+        memory = InvestigationMemory()
         skipped_checks: list[SkippedCheck] = []
         while True:
             if (
@@ -146,15 +145,8 @@ class InvestigationEngine:
                     )
             else:
                 try:
-                    try:
-                        choice = self.planner.choose(request, memory)
-                        action = await choice if inspect.isawaitable(choice) else choice
-                    finally:
-                        pop_events = getattr(self.planner, "pop_events", None)
-                        if pop_events is not None:
-                            for event in pop_events():
-                                if on_progress:
-                                    on_progress(event)
+                    choice = self.planner.choose(request, memory)
+                    action = await choice if inspect.isawaitable(choice) else choice
                 except PlannerError as exc:
                     report = self._report(
                         request, memory, skipped_checks, "paused", "planner_error"
@@ -351,8 +343,6 @@ class InvestigationEngine:
             use_rag=request.use_rag,
             skipped_checks=skipped_checks,
             planner=getattr(self.planner, "name", "demo"),
-            reasoning=getattr(self.planner, "reasoning", "linear"),
-            thought_searches=list(getattr(self.planner, "searches", [])),
             model=getattr(self.planner, "model", None),
             model_calls=getattr(self.planner, "calls", 0),
             model_usage=getattr(self.planner, "usage", ModelUsage()),

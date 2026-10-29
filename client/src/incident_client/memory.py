@@ -7,7 +7,6 @@ from incident_common.models import AuditEntry, ToolName, ToolResult
 
 @dataclass
 class InvestigationMemory:
-    call_limit: int = 8
     results: dict[ToolName, ToolResult] = field(default_factory=dict)
     attempts: dict[ToolName, int] = field(default_factory=dict)
     evidence_keys: set[tuple[str, str]] = field(default_factory=set)

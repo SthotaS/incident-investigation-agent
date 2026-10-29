@@ -15,7 +15,6 @@ dependencies = [
     "fastembed>=0.7,<0.8",
     "openai>=2,<3",
     "filelock>=3.16,<5",
-    "langchain-core>=1,<2",
 ]
 
 [project.optional-dependencies]

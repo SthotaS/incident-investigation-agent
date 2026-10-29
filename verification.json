@@ -7,14 +7,13 @@
     "fastembed": "0.7.4",
     "faiss-cpu": "1.15.1",
     "pydantic": "2.14.1",
-    "filelock": "4.2.4",
-    "langchain-core": "1.7.0"
+    "filelock": "4.2.4"
   },
   "ruff_check": "passed",
   "ruff_format_check": "passed",
   "pytest": {
-    "command": "PYTHONDONTWRITEBYTECODE=1 RUN_RAG_INTEGRATION=1 .venv/bin/python -m pytest -q -p no:cacheprovider",
-    "passed": 449
+    "command": "PYTHONDONTWRITEBYTECODE=1 HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 OPENAI_API_KEY= RUN_RAG_INTEGRATION=1 .venv/bin/python -m pytest -q -p no:cacheprovider",
+    "passed": 406
   },
   "wheel_build": "passed",
   "historical_documents": 5,
@@ -135,34 +134,20 @@
     ],
     "remaining_tests": "Kept investigation, RAG, storage, API, terminal output, exit-code, and security checks."
   },
-  "tree_of_thought": {
-    "framework": "LangChain Core 1.7.0; CrewAI and LangGraph not added",
-    "flag": "--reasoning tot; linear remains the default",
-    "roles": "LCEL generation -> Python evaluation and beam search -> checked action selection",
-    "search": {
-      "branching_factor": 3,
-      "beam_width": 2,
-      "max_depth": 3,
-      "max_nodes_per_search": 16,
-      "max_searches_per_investigation": 3,
-      "minimum_planning_score": 10
-    },
-    "tree": "Current evidence -> possible cause -> next planned check -> one further planned check; no imagined observations",
-    "budget": "All branches share the original 8 tool attempts, including retries and RAG. API attempts remain separate and capped.",
-    "pruning": "Unknown references, unavailable tools, low scores and beam width; set-aside causes remain open",
-    "current_evidence": "Current local errors take priority over the past monitoring lead; past bonus stops after a failed trace or monitoring observation",
-    "engine_rules": "Two no-evidence pause, failed-tool retry limits, current logs plus trace, and engineer approval preserved",
-    "full_pytest_passed": 430,
+  "reasoning_choice": {
+    "approach": "Step-by-step reasoning in a bounded ReAct-style tool loop; no tree search",
+    "reason": "In the synthetic INC-10234 trial, ToT and the ordinary RAG loop used the same six checks and supported the same failure point; the underlying root cause stayed unconfirmed.",
+    "limits_of_comparison": "Repeatable Python planning with real MCP tools; no claim about production accuracy, model variability or paid API savings.",
+    "removed": "ToT planner, tree models and progress, model proposal prompt, CLI reasoning switch, tree-specific JSON fields and tests, LangChain dependency and unused transitive dependencies",
+    "preserved": "MCP tools, RAG evaluation, SQLite saves, existing evidence-based priorities, OpenAI model and normal planning prompt, shared 8-attempt budget and engineer approvals",
+    "full_pytest_passed": 406,
     "ruff_check": "passed",
     "ruff_format_check": "passed",
-    "locked_offline_sync": "passed",
-    "wheel_build": "passed; wheel contains ToT modules",
-    "real_mcp_smoke": "Linear and ToT modes each finished in 5 calls without RAG and 6 with RAG; JSON stdout parsed successfully",
-    "comparison": "ToT demo: trace first without RAG; monitoring first with RAG, citing retrieved history",
-    "data_preserved": "All backed-up SQLite and FAISS generation/content hashes unchanged",
-    "reports_folder_created": false,
-    "paid_api_calls_during_verification": 0,
-    "api_verification": "Mocked proposals and real OpenAI SDK with mock HTTP transport; live paid model generation not run"
+    "locked_offline_sync": "passed; updated the existing virtual environment",
+    "wheel_build": "passed; no ToT modules or LangChain dependency; RAG fixtures included",
+    "real_mcp_smoke": "Without RAG 5 calls; with RAG 6 calls; decisions, evidence and findings match the pre-removal ordinary loop",
+    "protected_storage_files_unchanged": 6,
+    "paid_api_requests_during_verification": 0
   },
   "rag_evaluation": {
     "cases": 6,

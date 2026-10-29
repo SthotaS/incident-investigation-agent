@@ -10,7 +10,6 @@ from functools import partial
 from getpass import getpass
 
 from incident_common.models import AuditEntry, InvestigationRequest, SkippedCheck, ToolName
-from incident_common.tot_models import ToTProgress
 from pydantic import ValidationError
 
 from incident_client.config import Settings
@@ -21,7 +20,7 @@ from incident_client.policy import DemoPlanner
 from incident_client.reporting import render_cause_assessments, render_progress, render_summary
 
 
-def _progress(entry: AuditEntry | SkippedCheck | ToTProgress, *, verbose: bool = False) -> None:
+def _progress(entry: AuditEntry | SkippedCheck, *, verbose: bool = False) -> None:
     print(render_progress(entry, verbose=verbose), file=sys.stderr)
 
 
@@ -59,10 +58,6 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
             **_rag_control(args),
         )
         planner = OpenAIPlanner() if args.planner == "openai" else DemoPlanner()
-        if getattr(args, "reasoning", "linear") == "tot":
-            from incident_client.tot import ToTPlanner
-
-            planner = ToTPlanner(planner)
         try:
             report = await InvestigationEngine(gateway, planner=planner).run(
                 request,
@@ -81,8 +76,6 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         print("\n" + render_summary(report))
         return 0 if report.status == "finished" else 2
     print(f"\nSynthetic incident investigation — {report.mode}; planner: {report.planner}")
-    if report.reasoning == "tot":
-        print(f"Reasoning: ToT beam search; searches: {len(report.thought_searches)}")
     if report.model:
         print(f"API model: {report.model}; model requests: {report.model_calls}")
         if report.model_usage.measured_responses:
@@ -133,12 +126,6 @@ def main() -> None:
         help="Search past incidents; --no-use-rag skips the knowledge database",
     )
     parser.add_argument("--planner", choices=["demo", "openai"], default=None)
-    parser.add_argument(
-        "--reasoning",
-        choices=["linear", "tot"],
-        default="linear",
-        help="Use the existing next-check planner or bounded Tree-of-Thought search",
-    )
     parser.add_argument(
         "--ask-key", action="store_true", help="Read an API key without echoing or saving it"
     )

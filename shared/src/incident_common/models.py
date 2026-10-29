@@ -18,7 +18,6 @@ from pydantic import (
 
 from incident_common.hypothesis_models import CauseAssessment
 from incident_common.rag_models import RetrievalInfo
-from incident_common.tot_models import ThoughtSearch
 
 TransactionId = Annotated[str, Field(pattern=r"^TX[0-9]{6}$")]
 IncidentId = Annotated[str, Field(pattern=r"^INC-[0-9]{5}$")]
@@ -228,8 +227,6 @@ class InvestigationReport(BaseModel):
     use_rag: bool = False
     skipped_checks: list[SkippedCheck] = Field(default_factory=list)
     planner: str = "demo"
-    reasoning: Literal["linear", "tot"] = "linear"
-    thought_searches: list[ThoughtSearch] = Field(default_factory=list, max_length=3)
     model: str | None = None
     model_calls: int = 0
     model_usage: ModelUsage = Field(default_factory=ModelUsage)

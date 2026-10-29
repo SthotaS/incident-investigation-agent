@@ -48,36 +48,38 @@ async def test_finished_status_request_returns_zero(results, monkeypatch, capsys
     assert json.loads(capsys.readouterr().out)["calls_used"] == 1
 
 
-@pytest.mark.parametrize("reasoning", ["linear", "tot"])
-async def test_reasoning_modes_return_clean_json_without_saving_files(
-    reasoning, results, monkeypatch, capsys, tmp_path
+@pytest.mark.parametrize("use_rag, calls", [(False, 5), (True, 6)])
+async def test_investigation_returns_clean_json_without_saving_files(
+    use_rag, calls, results, monkeypatch, capsys, tmp_path
 ):
+    results[ToolName.SIMILAR] = historical_result()
     install_console_gateway(monkeypatch, results)
     monkeypatch.chdir(tmp_path)
     args = cli_args(json_output=True)
-    args.planner, args.mode, args.reasoning = "demo", "without-rag", reasoning
+    args.planner = "demo"
+    args.mode = "with-rag" if use_rag else "without-rag"
 
     assert await cli._run(args, Settings()) == 0
 
     console = capsys.readouterr()
     report = json.loads(console.out)
-    assert report["reasoning"] == reasoning and report["calls_used"] == 5
-    assert bool(report["thought_searches"]) == (reasoning == "tot")
+    assert report["use_rag"] == use_rag and report["calls_used"] == calls
+    assert "reasoning" not in report and "thought_searches" not in report
     assert console.err == "" and list(tmp_path.iterdir()) == []
 
 
-def test_client_parser_passes_tot_option_to_the_shared_engine(monkeypatch):
-    captured = []
-
-    async def run(args, settings):
-        captured.append(args.reasoning)
-        return 0
-
-    monkeypatch.setattr(cli, "_run", run)
-    monkeypatch.setattr(sys, "argv", ["incident-client", "--reasoning", "tot", "--planner", "demo"])
+@pytest.mark.parametrize("command", ["incident-client", "incident-compare"])
+def test_removed_reasoning_option_is_rejected_before_starting(command, monkeypatch):
+    runner = AsyncMock()
+    module, entrypoint = (
+        (cli, "_run") if command == "incident-client" else (compare, "run_comparison")
+    )
+    monkeypatch.setattr(module, entrypoint, runner)
+    monkeypatch.setattr(sys, "argv", [command, "--reasoning", "tot", "--planner", "demo"])
     with pytest.raises(SystemExit) as result:
-        cli.main()
-    assert result.value.code == 0 and captured == ["tot"]
+        module.main()
+    assert result.value.code == 2
+    runner.assert_not_called()
 
 
 def test_client_main_returns_the_investigation_exit_code(monkeypatch):
@@ -148,10 +150,7 @@ async def test_discovery_timeout_is_bounded_and_safe():
 
 
 @pytest.mark.parametrize("paused", [False, True])
-@pytest.mark.parametrize("reasoning", ["linear", "tot"])
-def test_comparison_displays_results_without_creating_files(
-    paused, reasoning, monkeypatch, tmp_path, capsys
-):
+def test_comparison_displays_results_without_creating_files(paused, monkeypatch, tmp_path, capsys):
     reports = [
         InvestigationReport(
             run_id=f"synthetic-{mode}",
@@ -167,9 +166,7 @@ def test_comparison_displays_results_without_creating_files(
     runner = AsyncMock(return_value=tuple(reports))
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(compare, "run_comparison", runner)
-    monkeypatch.setattr(
-        sys, "argv", ["incident-compare", "--planner", "demo", "--reasoning", reasoning]
-    )
+    monkeypatch.setattr(sys, "argv", ["incident-compare", "--planner", "demo"])
 
     if paused:
         with pytest.raises(SystemExit) as result:
@@ -178,7 +175,7 @@ def test_comparison_displays_results_without_creating_files(
     else:
         compare.main()
 
-    runner.assert_awaited_once_with("demo", verbose=False, reasoning=reasoning)
+    runner.assert_awaited_once_with("demo", verbose=False)
     assert list(tmp_path.iterdir()) == []
     output = capsys.readouterr()
     assert "Without RAG:" in output.out and "with RAG:" in output.out

@@ -6,12 +6,15 @@ A Python MCP client and server for investigating synthetic transaction incidents
 
 - Reads transaction status, logs, traces, monitoring, and deployment history.
 - Uses RAG to find similar past incidents and approved human decisions.
-- Offers optional Tree of Thought (ToT) planning to compare possible causes.
+- Uses a step-by-step ReAct loop to choose checks from the evidence already collected.
 - Shows investigation progress, supported findings, and open questions.
 - Requires an engineer to confirm the root cause, perform recovery, and approve knowledge saves.
 
 Each cycle allows at most **8 tool attempts**, including retrieval and retries. Current logs
 and a separate current trace must support the settlement failure point. Past cases are leads.
+
+We chose this loop because the ToT trial used the same checks and reached the same finding.
+See [why we did not use ToT](docs/architecture.md#why-we-use-react-instead-of-tot).
 
 ## High-level architecture
 
@@ -59,8 +62,8 @@ the app does not load `.env` files automatically. An alternative
 .venv/bin/incident-client --no-use-rag --planner openai --ask-key
 .venv/bin/incident-client --use-rag --planner openai --ask-key
 
-# Add bounded ToT planning to a RAG demo.
-.venv/bin/incident-client --use-rag --reasoning tot --planner demo
+# Investigate with RAG using Python rules; no API key.
+.venv/bin/incident-client --use-rag --planner demo
 
 # Evaluate six synthetic cases with and without RAG; no API key.
 .venv/bin/incident-compare --evaluate
@@ -70,7 +73,7 @@ the app does not load `.env` files automatically. An alternative
 ```
 
 The default example is **INC-10234 / TX784521**. OpenAI commands use your paid API account;
-the key is not saved. Investigations use `linear` reasoning unless `--reasoning tot` is selected.
+the key is not saved. Both planners use the same bounded investigation loop.
 
 For investigation and comparison commands, add `--verbose` for full reasons and sources,
 or `--json` for structured output. They print to Terminal without creating report files.
@@ -88,6 +91,6 @@ If an API step pauses, see [troubleshooting](docs/architecture.md#if-the-api-pla
 RUN_RAG_INTEGRATION=1 .venv/bin/python -m pytest -q
 ```
 
-More detail: [architecture and ToT](docs/architecture.md),
+More detail: [architecture and reasoning choice](docs/architecture.md),
 [RAG design and evaluation](docs/rag-module.md),
 and [saving human decisions](docs/human-decisions.md).

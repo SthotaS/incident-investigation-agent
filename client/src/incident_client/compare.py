@@ -54,7 +54,7 @@ def comparison_details(before: InvestigationReport, after: InvestigationReport) 
 
 
 async def run_comparison(
-    planner_name: str, *, verbose: bool = False, reasoning: str = "linear", quiet: bool = False
+    planner_name: str, *, verbose: bool = False, quiet: bool = False
 ) -> tuple[InvestigationReport, InvestigationReport]:
     if planner_name == "openai" and not os.getenv("OPENAI_API_KEY", "").strip():
         raise PlannerError("Use --ask-key or set OPENAI_API_KEY before running the API comparison.")
@@ -63,10 +63,6 @@ async def run_comparison(
     async with connect(settings.tool_timeout_seconds) as gateway:
         for use_rag in (False, True):
             planner = OpenAIPlanner() if planner_name == "openai" else DemoPlanner()
-            if reasoning == "tot":
-                from incident_client.tot import ToTPlanner
-
-                planner = ToTPlanner(planner)
             try:
                 report = await InvestigationEngine(gateway, planner=planner).run(
                     InvestigationRequest(use_rag=use_rag),
@@ -85,7 +81,6 @@ def main() -> None:
     parser.add_argument("--planner", choices=["openai", "demo"], default=None)
     parser.add_argument("--ask-key", action="store_true", help="Read an API key without saving it")
     parser.add_argument("--verbose", action="store_true", help="Show full live action details")
-    parser.add_argument("--reasoning", choices=["linear", "tot"], default="linear")
     parser.add_argument(
         "--evaluate", action="store_true", help="Run six labeled synthetic RAG cases"
     )
@@ -98,8 +93,6 @@ def main() -> None:
     )
     parser.add_argument("--json", action="store_true", help="Print structured results to stdout")
     args = parser.parse_args()
-    if args.evaluate and args.reasoning != "linear":
-        parser.error("RAG evaluation holds reasoning at linear. Omit --reasoning tot.")
     if not args.evaluate and (args.case_id is not None or args.repeats != 1):
         parser.error("--case and --repeats are for --evaluate.")
     args.planner = args.planner or ("demo" if args.evaluate else "openai")
@@ -125,7 +118,6 @@ def main() -> None:
             run_comparison(
                 args.planner,
                 verbose=args.verbose,
-                reasoning=args.reasoning,
                 **({"quiet": True} if args.json else {}),
             )
         )
