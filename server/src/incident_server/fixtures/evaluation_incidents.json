@@ -1,0 +1,825 @@
+{
+  "synthetic": true,
+  "description": "Six evaluation incidents with current evidence only. Expected answers are stored separately in the client and never returned by MCP tools.",
+  "results": [
+    {
+      "source": "transaction_database",
+      "transaction_id": "TX900001",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-match-transaction_database",
+          "summary": "Billing transaction TX900001 has remained SETTLEMENT_SENT for 26 hours.",
+          "observed_at": "2026-01-16T12:00:00Z",
+          "reference": "synthetic://transactions/TX900001",
+          "facts": {
+            "transaction_id": "TX900001",
+            "incident_id": "INC-90001",
+            "status": "SETTLEMENT_SENT",
+            "stuck_hours": 26
+          }
+        }
+      ]
+    },
+    {
+      "source": "application_logs",
+      "transaction_id": "TX900001",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-match-application_logs",
+          "summary": "Settlement requests for TX900001 returned HTTP 503 Service Unavailable.",
+          "observed_at": "2026-01-15T10:00:02Z",
+          "reference": "synthetic://logs/TX900001/503",
+          "facts": {
+            "transaction_id": "TX900001",
+            "service": "settlement",
+            "http_status": 503
+          }
+        }
+      ]
+    },
+    {
+      "source": "distributed_traces",
+      "transaction_id": "TX900001",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-match-distributed_traces",
+          "summary": "The settlement trace shows no successful response after the application's processing retries were exhausted.",
+          "observed_at": "2026-01-15T10:00:12Z",
+          "reference": "synthetic://traces/TX900001/settlement",
+          "facts": {
+            "transaction_id": "TX900001",
+            "service": "settlement",
+            "successful_response": false,
+            "retries_exhausted": true,
+            "processing_attempts": 3
+          }
+        }
+      ]
+    },
+    {
+      "source": "monitoring",
+      "transaction_id": "TX900001",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-match-monitoring",
+          "summary": "Monitoring shows elevated settlement-service errors while the billing application remains healthy. A six-transaction sample has two successful settlements before 10:00 UTC and four HTTP 503 failures from 10:00 to 10:02 UTC, including TX900001. This pattern suggests a wider service problem; it does not establish the underlying cause or prove a complete outage.",
+          "observed_at": "2026-01-15T10:10:00Z",
+          "reference": "synthetic://monitoring/TX900001/settlement",
+          "facts": {
+            "transaction_id": "TX900001",
+            "service": "settlement",
+            "elevated_errors": true,
+            "application_healthy": true,
+            "monitoring_window": {
+              "window_start": "2026-01-15T09:55:00Z",
+              "window_end": "2026-01-15T10:10:00Z",
+              "error_started_at": "2026-01-15T10:00:00Z",
+              "service": "settlement",
+              "checked_transaction_count": 6,
+              "affected_transaction_count": 4,
+              "successful_transaction_count": 2,
+              "observations": [
+                {
+                  "transaction_id": "TX911000",
+                  "observed_at": "2026-01-15T09:56:00Z",
+                  "outcome": "succeeded",
+                  "http_status": 200,
+                  "reference": "synthetic://monitoring/settlement/TX911000/2026-01-15T09:56:00Z"
+                },
+                {
+                  "transaction_id": "TX911001",
+                  "observed_at": "2026-01-15T09:58:00Z",
+                  "outcome": "succeeded",
+                  "http_status": 200,
+                  "reference": "synthetic://monitoring/settlement/TX911001/2026-01-15T09:58:00Z"
+                },
+                {
+                  "transaction_id": "TX900001",
+                  "observed_at": "2026-01-15T10:00:02Z",
+                  "outcome": "failed",
+                  "http_status": 503,
+                  "reference": "synthetic://monitoring/settlement/TX900001/2026-01-15T10:00:02Z"
+                },
+                {
+                  "transaction_id": "TX911003",
+                  "observed_at": "2026-01-15T10:00:04Z",
+                  "outcome": "failed",
+                  "http_status": 503,
+                  "reference": "synthetic://monitoring/settlement/TX911003/2026-01-15T10:00:04Z"
+                },
+                {
+                  "transaction_id": "TX911004",
+                  "observed_at": "2026-01-15T10:01:00Z",
+                  "outcome": "failed",
+                  "http_status": 503,
+                  "reference": "synthetic://monitoring/settlement/TX911004/2026-01-15T10:01:00Z"
+                },
+                {
+                  "transaction_id": "TX911005",
+                  "observed_at": "2026-01-15T10:02:00Z",
+                  "outcome": "failed",
+                  "http_status": 503,
+                  "reference": "synthetic://monitoring/settlement/TX911005/2026-01-15T10:02:00Z"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "source": "deployment_history",
+      "transaction_id": "TX900001",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-match-deployment_history",
+          "summary": "The synthetic deployment check completed and found no relevant recent application or settlement-service change.",
+          "observed_at": "2026-01-16T12:01:00Z",
+          "reference": "synthetic://deployments/TX900001/review",
+          "facts": {
+            "transaction_id": "TX900001",
+            "relevant_change": false,
+            "check_completed": true,
+            "window_hours": 48
+          }
+        }
+      ]
+    },
+    {
+      "source": "transaction_database",
+      "transaction_id": "TX900002",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-changed_cause-transaction_database",
+          "summary": "Billing transaction TX900002 has remained SETTLEMENT_SENT for 26 hours.",
+          "observed_at": "2026-01-16T12:00:00Z",
+          "reference": "synthetic://transactions/TX900002",
+          "facts": {
+            "transaction_id": "TX900002",
+            "incident_id": "INC-90002",
+            "status": "SETTLEMENT_SENT",
+            "stuck_hours": 26
+          }
+        }
+      ]
+    },
+    {
+      "source": "application_logs",
+      "transaction_id": "TX900002",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-changed_cause-application_logs",
+          "summary": "Billing application logs for TX900002 show settlement HTTP 503 responses and a local field-mapping exception after a recent release.",
+          "observed_at": "2026-01-15T10:00:02Z",
+          "reference": "synthetic://logs/TX900002/503",
+          "facts": {
+            "transaction_id": "TX900002",
+            "service": "settlement",
+            "http_status": 503,
+            "local_exception": true
+          }
+        }
+      ]
+    },
+    {
+      "source": "distributed_traces",
+      "transaction_id": "TX900002",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-changed_cause-distributed_traces",
+          "summary": "The settlement trace shows no successful response after the application's processing retries were exhausted.",
+          "observed_at": "2026-01-15T10:00:12Z",
+          "reference": "synthetic://traces/TX900002/settlement",
+          "facts": {
+            "transaction_id": "TX900002",
+            "service": "settlement",
+            "successful_response": false,
+            "retries_exhausted": true,
+            "processing_attempts": 3
+          }
+        }
+      ]
+    },
+    {
+      "source": "monitoring",
+      "transaction_id": "TX900002",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-changed_cause-monitoring",
+          "summary": "Monitoring for TX900002 shows normal settlement service health. The target failed with 503 while five nearby settlement transactions succeeded. This small sample does not prove that no other failures exist.",
+          "observed_at": "2026-01-15T10:10:00Z",
+          "reference": "synthetic://monitoring/TX900002/settlement",
+          "facts": {
+            "transaction_id": "TX900002",
+            "service": "settlement",
+            "elevated_errors": false,
+            "application_healthy": true,
+            "monitoring_window": {
+              "window_start": "2026-01-15T09:55:00Z",
+              "window_end": "2026-01-15T10:10:00Z",
+              "error_started_at": "2026-01-15T10:00:00Z",
+              "service": "settlement",
+              "checked_transaction_count": 6,
+              "affected_transaction_count": 1,
+              "successful_transaction_count": 5,
+              "observations": [
+                {
+                  "transaction_id": "TX912000",
+                  "observed_at": "2026-01-15T09:56:00Z",
+                  "outcome": "succeeded",
+                  "http_status": 200,
+                  "reference": "synthetic://monitoring/settlement/TX912000/2026-01-15T09:56:00Z"
+                },
+                {
+                  "transaction_id": "TX912001",
+                  "observed_at": "2026-01-15T09:58:00Z",
+                  "outcome": "succeeded",
+                  "http_status": 200,
+                  "reference": "synthetic://monitoring/settlement/TX912001/2026-01-15T09:58:00Z"
+                },
+                {
+                  "transaction_id": "TX900002",
+                  "observed_at": "2026-01-15T10:00:02Z",
+                  "outcome": "failed",
+                  "http_status": 503,
+                  "reference": "synthetic://monitoring/settlement/TX900002/2026-01-15T10:00:02Z"
+                },
+                {
+                  "transaction_id": "TX912003",
+                  "observed_at": "2026-01-15T10:00:04Z",
+                  "outcome": "succeeded",
+                  "http_status": 200,
+                  "reference": "synthetic://monitoring/settlement/TX912003/2026-01-15T10:00:04Z"
+                },
+                {
+                  "transaction_id": "TX912004",
+                  "observed_at": "2026-01-15T10:01:00Z",
+                  "outcome": "succeeded",
+                  "http_status": 200,
+                  "reference": "synthetic://monitoring/settlement/TX912004/2026-01-15T10:01:00Z"
+                },
+                {
+                  "transaction_id": "TX912005",
+                  "observed_at": "2026-01-15T10:02:00Z",
+                  "outcome": "succeeded",
+                  "http_status": 200,
+                  "reference": "synthetic://monitoring/settlement/TX912005/2026-01-15T10:02:00Z"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "source": "deployment_history",
+      "transaction_id": "TX900002",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-changed_cause-deployment_history",
+          "summary": "A completed deployment review found a relevant recent billing field-mapping change. Timing alone does not establish the cause.",
+          "observed_at": "2026-01-16T12:01:00Z",
+          "reference": "synthetic://deployments/TX900002/review",
+          "facts": {
+            "transaction_id": "TX900002",
+            "relevant_change": true,
+            "check_completed": true,
+            "window_hours": 48
+          }
+        }
+      ]
+    },
+    {
+      "source": "transaction_database",
+      "transaction_id": "TX900003",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-misleading-transaction_database",
+          "summary": "Billing transaction TX900003 has remained SETTLEMENT_SENT for 26 hours.",
+          "observed_at": "2026-01-16T12:00:00Z",
+          "reference": "synthetic://transactions/TX900003",
+          "facts": {
+            "transaction_id": "TX900003",
+            "incident_id": "INC-90003",
+            "status": "SETTLEMENT_SENT",
+            "stuck_hours": 26
+          }
+        }
+      ]
+    },
+    {
+      "source": "application_logs",
+      "transaction_id": "TX900003",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-misleading-application_logs",
+          "summary": "Settlement requests for TX900003 returned HTTP 503 Service Unavailable.",
+          "observed_at": "2026-01-15T10:00:02Z",
+          "reference": "synthetic://logs/TX900003/503",
+          "facts": {
+            "transaction_id": "TX900003",
+            "service": "settlement",
+            "http_status": 503
+          }
+        }
+      ]
+    },
+    {
+      "source": "distributed_traces",
+      "transaction_id": "TX900003",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-misleading-distributed_traces",
+          "summary": "The settlement trace shows no successful response after the application's processing retries were exhausted.",
+          "observed_at": "2026-01-15T10:00:12Z",
+          "reference": "synthetic://traces/TX900003/settlement",
+          "facts": {
+            "transaction_id": "TX900003",
+            "service": "settlement",
+            "successful_response": false,
+            "retries_exhausted": true,
+            "processing_attempts": 3
+          }
+        }
+      ]
+    },
+    {
+      "source": "monitoring",
+      "transaction_id": "TX900003",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-misleading-monitoring",
+          "summary": "Monitoring for TX900003 shows normal settlement service health. The target failed with 503 while five nearby settlement transactions succeeded. This small sample does not prove that no other failures exist.",
+          "observed_at": "2026-01-15T10:10:00Z",
+          "reference": "synthetic://monitoring/TX900003/settlement",
+          "facts": {
+            "transaction_id": "TX900003",
+            "service": "settlement",
+            "elevated_errors": false,
+            "application_healthy": true,
+            "monitoring_window": {
+              "window_start": "2026-01-15T09:55:00Z",
+              "window_end": "2026-01-15T10:10:00Z",
+              "error_started_at": "2026-01-15T10:00:00Z",
+              "service": "settlement",
+              "checked_transaction_count": 6,
+              "affected_transaction_count": 1,
+              "successful_transaction_count": 5,
+              "observations": [
+                {
+                  "transaction_id": "TX913000",
+                  "observed_at": "2026-01-15T09:56:00Z",
+                  "outcome": "succeeded",
+                  "http_status": 200,
+                  "reference": "synthetic://monitoring/settlement/TX913000/2026-01-15T09:56:00Z"
+                },
+                {
+                  "transaction_id": "TX913001",
+                  "observed_at": "2026-01-15T09:58:00Z",
+                  "outcome": "succeeded",
+                  "http_status": 200,
+                  "reference": "synthetic://monitoring/settlement/TX913001/2026-01-15T09:58:00Z"
+                },
+                {
+                  "transaction_id": "TX900003",
+                  "observed_at": "2026-01-15T10:00:02Z",
+                  "outcome": "failed",
+                  "http_status": 503,
+                  "reference": "synthetic://monitoring/settlement/TX900003/2026-01-15T10:00:02Z"
+                },
+                {
+                  "transaction_id": "TX913003",
+                  "observed_at": "2026-01-15T10:00:04Z",
+                  "outcome": "succeeded",
+                  "http_status": 200,
+                  "reference": "synthetic://monitoring/settlement/TX913003/2026-01-15T10:00:04Z"
+                },
+                {
+                  "transaction_id": "TX913004",
+                  "observed_at": "2026-01-15T10:01:00Z",
+                  "outcome": "succeeded",
+                  "http_status": 200,
+                  "reference": "synthetic://monitoring/settlement/TX913004/2026-01-15T10:01:00Z"
+                },
+                {
+                  "transaction_id": "TX913005",
+                  "observed_at": "2026-01-15T10:02:00Z",
+                  "outcome": "succeeded",
+                  "http_status": 200,
+                  "reference": "synthetic://monitoring/settlement/TX913005/2026-01-15T10:02:00Z"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "source": "deployment_history",
+      "transaction_id": "TX900003",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-misleading-deployment_history",
+          "summary": "The synthetic deployment check completed and found no relevant recent application or settlement-service change.",
+          "observed_at": "2026-01-16T12:01:00Z",
+          "reference": "synthetic://deployments/TX900003/review",
+          "facts": {
+            "transaction_id": "TX900003",
+            "relevant_change": false,
+            "check_completed": true,
+            "window_hours": 48
+          }
+        }
+      ]
+    },
+    {
+      "source": "transaction_database",
+      "transaction_id": "TX900004",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-no_match-transaction_database",
+          "summary": "Archive task TX900004 has been in CHECKSUM_PENDING for 26 hours while verifying a compressed backup.",
+          "observed_at": "2026-01-16T12:00:00Z",
+          "reference": "synthetic://transactions/TX900004",
+          "facts": {
+            "transaction_id": "TX900004",
+            "incident_id": "INC-90004",
+            "status": "CHECKSUM_PENDING",
+            "stuck_hours": 26
+          }
+        }
+      ]
+    },
+    {
+      "source": "application_logs",
+      "transaction_id": "TX900004",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-no_match-application_logs",
+          "summary": "Archive verifier for TX900004 found a checksum mismatch in compressed backup chunks. There is no payment or HTTP failure in this record.",
+          "observed_at": "2026-01-15T10:00:02Z",
+          "reference": "synthetic://logs/TX900004/503",
+          "facts": {
+            "transaction_id": "TX900004",
+            "service": "archive",
+            "checksum_mismatch": true
+          }
+        }
+      ]
+    },
+    {
+      "source": "distributed_traces",
+      "transaction_id": "TX900004",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-no_match-distributed_traces",
+          "summary": "The synthetic distributed_traces record for TX900004 concerns archive verification only; it supplies no settlement evidence.",
+          "observed_at": "2026-01-15T10:00:12Z",
+          "reference": "synthetic://traces/TX900004/settlement",
+          "facts": {
+            "transaction_id": "TX900004",
+            "service": "archive",
+            "check_completed": true
+          }
+        }
+      ]
+    },
+    {
+      "source": "monitoring",
+      "transaction_id": "TX900004",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-no_match-monitoring",
+          "summary": "The synthetic monitoring record for TX900004 concerns archive verification only; it supplies no settlement evidence.",
+          "observed_at": "2026-01-15T10:10:00Z",
+          "reference": "synthetic://monitoring/TX900004/settlement",
+          "facts": {
+            "transaction_id": "TX900004",
+            "service": "archive",
+            "check_completed": true
+          }
+        }
+      ]
+    },
+    {
+      "source": "deployment_history",
+      "transaction_id": "TX900004",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-no_match-deployment_history",
+          "summary": "The synthetic deployment check completed and found no relevant recent application or settlement-service change.",
+          "observed_at": "2026-01-16T12:01:00Z",
+          "reference": "synthetic://deployments/TX900004/review",
+          "facts": {
+            "transaction_id": "TX900004",
+            "relevant_change": false,
+            "check_completed": true,
+            "window_hours": 48
+          }
+        }
+      ]
+    },
+    {
+      "source": "transaction_database",
+      "transaction_id": "TX900005",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-missing_trace-transaction_database",
+          "summary": "Billing transaction TX900005 has remained SETTLEMENT_SENT for 26 hours.",
+          "observed_at": "2026-01-16T12:00:00Z",
+          "reference": "synthetic://transactions/TX900005",
+          "facts": {
+            "transaction_id": "TX900005",
+            "incident_id": "INC-90005",
+            "status": "SETTLEMENT_SENT",
+            "stuck_hours": 26
+          }
+        }
+      ]
+    },
+    {
+      "source": "application_logs",
+      "transaction_id": "TX900005",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-missing_trace-application_logs",
+          "summary": "Settlement requests for TX900005 returned HTTP 503 Service Unavailable.",
+          "observed_at": "2026-01-15T10:00:02Z",
+          "reference": "synthetic://logs/TX900005/503",
+          "facts": {
+            "transaction_id": "TX900005",
+            "service": "settlement",
+            "http_status": 503
+          }
+        }
+      ]
+    },
+    {
+      "source": "distributed_traces",
+      "transaction_id": "TX900005",
+      "status": "empty",
+      "records": []
+    },
+    {
+      "source": "monitoring",
+      "transaction_id": "TX900005",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-missing_trace-monitoring",
+          "summary": "Monitoring shows elevated settlement-service errors while the billing application remains healthy. A six-transaction sample has two successful settlements before 10:00 UTC and four HTTP 503 failures from 10:00 to 10:02 UTC, including TX900005. This pattern suggests a wider service problem; it does not establish the underlying cause or prove a complete outage.",
+          "observed_at": "2026-01-15T10:10:00Z",
+          "reference": "synthetic://monitoring/TX900005/settlement",
+          "facts": {
+            "transaction_id": "TX900005",
+            "service": "settlement",
+            "elevated_errors": true,
+            "application_healthy": true,
+            "monitoring_window": {
+              "window_start": "2026-01-15T09:55:00Z",
+              "window_end": "2026-01-15T10:10:00Z",
+              "error_started_at": "2026-01-15T10:00:00Z",
+              "service": "settlement",
+              "checked_transaction_count": 6,
+              "affected_transaction_count": 4,
+              "successful_transaction_count": 2,
+              "observations": [
+                {
+                  "transaction_id": "TX915000",
+                  "observed_at": "2026-01-15T09:56:00Z",
+                  "outcome": "succeeded",
+                  "http_status": 200,
+                  "reference": "synthetic://monitoring/settlement/TX915000/2026-01-15T09:56:00Z"
+                },
+                {
+                  "transaction_id": "TX915001",
+                  "observed_at": "2026-01-15T09:58:00Z",
+                  "outcome": "succeeded",
+                  "http_status": 200,
+                  "reference": "synthetic://monitoring/settlement/TX915001/2026-01-15T09:58:00Z"
+                },
+                {
+                  "transaction_id": "TX900005",
+                  "observed_at": "2026-01-15T10:00:02Z",
+                  "outcome": "failed",
+                  "http_status": 503,
+                  "reference": "synthetic://monitoring/settlement/TX900005/2026-01-15T10:00:02Z"
+                },
+                {
+                  "transaction_id": "TX915003",
+                  "observed_at": "2026-01-15T10:00:04Z",
+                  "outcome": "failed",
+                  "http_status": 503,
+                  "reference": "synthetic://monitoring/settlement/TX915003/2026-01-15T10:00:04Z"
+                },
+                {
+                  "transaction_id": "TX915004",
+                  "observed_at": "2026-01-15T10:01:00Z",
+                  "outcome": "failed",
+                  "http_status": 503,
+                  "reference": "synthetic://monitoring/settlement/TX915004/2026-01-15T10:01:00Z"
+                },
+                {
+                  "transaction_id": "TX915005",
+                  "observed_at": "2026-01-15T10:02:00Z",
+                  "outcome": "failed",
+                  "http_status": 503,
+                  "reference": "synthetic://monitoring/settlement/TX915005/2026-01-15T10:02:00Z"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "source": "deployment_history",
+      "transaction_id": "TX900005",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-missing_trace-deployment_history",
+          "summary": "The synthetic deployment check completed and found no relevant recent application or settlement-service change.",
+          "observed_at": "2026-01-16T12:01:00Z",
+          "reference": "synthetic://deployments/TX900005/review",
+          "facts": {
+            "transaction_id": "TX900005",
+            "relevant_change": false,
+            "check_completed": true,
+            "window_hours": 48
+          }
+        }
+      ]
+    },
+    {
+      "source": "transaction_database",
+      "transaction_id": "TX900006",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-paraphrase-transaction_database",
+          "summary": "Billing transfer TX900006 is still awaiting settlement acknowledgement more than a day after it was sent.",
+          "observed_at": "2026-01-16T12:00:00Z",
+          "reference": "synthetic://transactions/TX900006",
+          "facts": {
+            "transaction_id": "TX900006",
+            "incident_id": "INC-90006",
+            "status": "SETTLEMENT_SENT",
+            "stuck_hours": 26
+          }
+        }
+      ]
+    },
+    {
+      "source": "application_logs",
+      "transaction_id": "TX900006",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-paraphrase-application_logs",
+          "summary": "The settlement endpoint returned HTTP 503 for TX900006. Repeated delivery attempts did not receive a successful acknowledgement.",
+          "observed_at": "2026-01-15T10:00:02Z",
+          "reference": "synthetic://logs/TX900006/503",
+          "facts": {
+            "transaction_id": "TX900006",
+            "service": "settlement",
+            "http_status": 503
+          }
+        }
+      ]
+    },
+    {
+      "source": "distributed_traces",
+      "transaction_id": "TX900006",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-paraphrase-distributed_traces",
+          "summary": "The settlement trace shows no successful response after the application's processing retries were exhausted.",
+          "observed_at": "2026-01-15T10:00:12Z",
+          "reference": "synthetic://traces/TX900006/settlement",
+          "facts": {
+            "transaction_id": "TX900006",
+            "service": "settlement",
+            "successful_response": false,
+            "retries_exhausted": true,
+            "processing_attempts": 3
+          }
+        }
+      ]
+    },
+    {
+      "source": "monitoring",
+      "transaction_id": "TX900006",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-paraphrase-monitoring",
+          "summary": "Monitoring shows elevated settlement-service errors while the billing application remains healthy. A six-transaction sample has two successful settlements before 10:00 UTC and four HTTP 503 failures from 10:00 to 10:02 UTC, including TX900006. This pattern suggests a wider service problem; it does not establish the underlying cause or prove a complete outage.",
+          "observed_at": "2026-01-15T10:10:00Z",
+          "reference": "synthetic://monitoring/TX900006/settlement",
+          "facts": {
+            "transaction_id": "TX900006",
+            "service": "settlement",
+            "elevated_errors": true,
+            "application_healthy": true,
+            "monitoring_window": {
+              "window_start": "2026-01-15T09:55:00Z",
+              "window_end": "2026-01-15T10:10:00Z",
+              "error_started_at": "2026-01-15T10:00:00Z",
+              "service": "settlement",
+              "checked_transaction_count": 6,
+              "affected_transaction_count": 4,
+              "successful_transaction_count": 2,
+              "observations": [
+                {
+                  "transaction_id": "TX916000",
+                  "observed_at": "2026-01-15T09:56:00Z",
+                  "outcome": "succeeded",
+                  "http_status": 200,
+                  "reference": "synthetic://monitoring/settlement/TX916000/2026-01-15T09:56:00Z"
+                },
+                {
+                  "transaction_id": "TX916001",
+                  "observed_at": "2026-01-15T09:58:00Z",
+                  "outcome": "succeeded",
+                  "http_status": 200,
+                  "reference": "synthetic://monitoring/settlement/TX916001/2026-01-15T09:58:00Z"
+                },
+                {
+                  "transaction_id": "TX900006",
+                  "observed_at": "2026-01-15T10:00:02Z",
+                  "outcome": "failed",
+                  "http_status": 503,
+                  "reference": "synthetic://monitoring/settlement/TX900006/2026-01-15T10:00:02Z"
+                },
+                {
+                  "transaction_id": "TX916003",
+                  "observed_at": "2026-01-15T10:00:04Z",
+                  "outcome": "failed",
+                  "http_status": 503,
+                  "reference": "synthetic://monitoring/settlement/TX916003/2026-01-15T10:00:04Z"
+                },
+                {
+                  "transaction_id": "TX916004",
+                  "observed_at": "2026-01-15T10:01:00Z",
+                  "outcome": "failed",
+                  "http_status": 503,
+                  "reference": "synthetic://monitoring/settlement/TX916004/2026-01-15T10:01:00Z"
+                },
+                {
+                  "transaction_id": "TX916005",
+                  "observed_at": "2026-01-15T10:02:00Z",
+                  "outcome": "failed",
+                  "http_status": 503,
+                  "reference": "synthetic://monitoring/settlement/TX916005/2026-01-15T10:02:00Z"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "source": "deployment_history",
+      "transaction_id": "TX900006",
+      "status": "found",
+      "records": [
+        {
+          "record_id": "eval-paraphrase-deployment_history",
+          "summary": "The synthetic deployment check completed and found no relevant recent application or settlement-service change.",
+          "observed_at": "2026-01-16T12:01:00Z",
+          "reference": "synthetic://deployments/TX900006/review",
+          "facts": {
+            "transaction_id": "TX900006",
+            "relevant_change": false,
+            "check_completed": true,
+            "window_hours": 48
+          }
+        }
+      ]
+    }
+  ]
+}

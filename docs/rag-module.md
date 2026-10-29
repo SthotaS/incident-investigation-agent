@@ -81,7 +81,8 @@ the explicitly named **demo** planner, which uses Python rules. It did not make 
 | 5 | Check deployments | Check distributed trace |
 | 6 | Finished | Check deployments, then finish |
 
-The retrieved case suggests checking settlement health earlier. Current monitoring then shows
+The retrieved case suggests checking settlement health before the trace. Monitoring is call four
+in both runs because retrieval adds a call. Current monitoring then shows
 settlement errors while the billing application is healthy. The current trace still confirms
 that this transaction received no successful settlement response after processing retries.
 Both runs report the settlement-service call as a supported failure point. The underlying root
@@ -108,6 +109,65 @@ Add `--verbose` if you need full reasons and source references.
 To compare both modes in one command, run `incident-compare --planner openai --ask-key`.
 It displays the results without creating files. A paused run exits with code 2 and shows the
 partial evidence. Report-file export code has been removed; use terminal screenshots for your document.
+
+## Evaluate retrieval quality and investigation work
+
+```bash
+# Six synthetic cases, both modes, real MCP and cached embeddings; no API key.
+.venv/bin/incident-compare --evaluate
+
+# Repeat the paired checks; order alternates, reasoning stays linear.
+.venv/bin/incident-compare --evaluate --repeats 3
+
+# A small API comparison, using the same model and rules in both modes.
+.venv/bin/incident-compare --evaluate --case misleading --planner openai --ask-key
+```
+
+The six current incidents cover a useful match, a related recent change, misleading outage
+history, no useful historical match, a missing trace, and a paraphrased health lead. The archive
+case is outside the settlement tools' supported evidence; a correct result is a pause, not a
+made-up payment finding. Expected findings, cause labels, and relevance judgments are in the
+client's `fixtures/rag_evaluation.json`. They are not passed to the planner or indexed. MCP
+serves only the current records in `server/fixtures/evaluation_incidents.json`.
+
+Evaluation builds a disposable index containing only the five fixed historical seeds, using
+the already cached embedding model. It uses an empty private knowledge path, so your saved
+decisions and main index are not changed. The command removes that temporary index afterward.
+`--evaluate` defaults to the Python demo planner; API use requires selecting `--planner openai`.
+Repeats are limited to three. `--json` prints structured results to stdout; no report is saved.
+
+The checks measure separate things:
+
+- **Retrieval precision:** useful returned records divided by all returned records, judged against
+  labels written before the run. An empty result has no precision score. A high similarity score
+  does not make an unrelated incident useful.
+- **Useful matches found:** known-match queries with at least one labeled match in the top two;
+  also record useful incidents missed, and correctly empty no-match searches. Search failures are
+  shown as incomplete coverage, rather than treated as empty results.
+- **Finding quality:** expected finish or justified pause, supported failure point, and the
+  expected possible/less-supported/needs-evidence labels for each cause. A correct cautious pause
+  counts as correct; there is no reward for inventing an underlying cause.
+- **Work:** all tool attempts including retrieval and retries. The evidence-readiness marker is
+  the call where current logs and trace support the final checked failure point. For cases that
+  should pause, it is the correct stop call. This marker does not mean all final cause labels or
+  the underlying root cause were known at that time.
+- **Anchoring checks:** the misleading-history, changed-cause, and missing-trace cases must not
+  copy a past diagnosis or replace missing current proof with history. Unexercised checks and
+  incomplete API/tool runs are reported separately. These checks score final structured findings
+  and cause labels; they do not judge free-text model explanations or human diagnoses.
+
+Run time includes model and MCP calls, including first-use warmup, but excludes index build and
+server startup. The paired run order alternates. Compare quality and completion counts alongside
+time; one fast failed run is not an efficiency gain. Engineer time and actual root-cause accuracy
+remain unmeasured until engineers carry out a timed review against independently confirmed cases.
+
+The first six-case demo found a useful incident for all five known-match queries, but only five
+of ten returned incidents were labeled useful. Both modes passed all six finding checks and
+all 15 cause-label checks. Both returned a correct pause where evidence was insufficient.
+RAG used six tool calls per case versus five without RAG, so this sample shows no call saving or
+finding-quality gain. These results test a small authored synthetic set, not production accuracy.
+The irrelevant second results motivate future relevance filtering, validated on a separate set
+before changing the current 0.70 threshold or claiming an improvement.
 
 For a fresh extracted source package, first run:
 

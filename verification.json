@@ -1,5 +1,5 @@
 {
-  "verified_on": "2026-10-27",
+  "verified_on": "2026-10-29",
   "python": "3.12.14",
   "packages": {
     "mcp": "1.30.0",
@@ -14,7 +14,7 @@
   "ruff_format_check": "passed",
   "pytest": {
     "command": "PYTHONDONTWRITEBYTECODE=1 RUN_RAG_INTEGRATION=1 .venv/bin/python -m pytest -q -p no:cacheprovider",
-    "passed": 430
+    "passed": 449
   },
   "wheel_build": "passed",
   "historical_documents": 5,
@@ -163,5 +163,69 @@
     "reports_folder_created": false,
     "paid_api_calls_during_verification": 0,
     "api_verification": "Mocked proposals and real OpenAI SDK with mock HTTP transport; live paid model generation not run"
+  },
+  "rag_evaluation": {
+    "cases": 6,
+    "repeats_per_mode": 3,
+    "runs": 36,
+    "planner": "explicit Python demo; no paid API calls",
+    "reasoning": "linear in both modes; same engine, model policy and 8-call budget",
+    "corpus": "private disposable index of 5 synthetic historical seeds; current incidents and saved human decisions excluded",
+    "transport": "real MCP stdio; actual cached FastEmbed embeddings and FAISS",
+    "answer_key": "separate client fixture; never sent to the planner or MCP tools",
+    "summary": {
+      "without_rag": {
+        "runs": 18,
+        "finding_checks_passed": 18,
+        "quality_checks_passed": 18,
+        "cause_labels_correct": 45,
+        "cause_labels_checked": 45,
+        "operational_errors": 0,
+        "unsafe_claims": 0,
+        "mean_tool_calls": 5,
+        "mean_elapsed_ms": 48.57,
+        "mean_calls_to_finding_or_pause": 3.83,
+        "finding_or_pause_count": 18,
+        "model_requests": 0
+      },
+      "with_rag": {
+        "runs": 18,
+        "finding_checks_passed": 18,
+        "quality_checks_passed": 18,
+        "cause_labels_correct": 45,
+        "cause_labels_checked": 45,
+        "operational_errors": 0,
+        "unsafe_claims": 0,
+        "mean_tool_calls": 6,
+        "mean_elapsed_ms": 91.87,
+        "mean_calls_to_finding_or_pause": 5.33,
+        "finding_or_pause_count": 18,
+        "model_requests": 0
+      },
+      "retrieval": {
+        "useful_returned": 15,
+        "returned": 30,
+        "precision_among_returned": 0.5,
+        "expected_match_hits": 15,
+        "known_match_queries_completed": 15,
+        "known_match_queries_requested": 15,
+        "retrieval_queries_completed": 18,
+        "retrieval_queries_requested": 18,
+        "relevant_records_expected": 18,
+        "no_match_queries_correct": 3,
+        "no_match_queries_completed": 3,
+        "anchoring_checks_passed": 9,
+        "anchoring_checks_exercised": 9
+      },
+      "root_cause_accuracy": "not measured; engineer confirmation remains required",
+      "engineer_time": "not measured; requires a timed human review study"
+    },
+    "limits": "small authored synthetic set; demo repeats do not measure model variability; free-text model reasons, human time and actual root-cause accuracy are not scored",
+    "full_pytest_passed": 449,
+    "final_focused_checks_passed": 57,
+    "ruff": "passed",
+    "wheel": "passed",
+    "preserved": "existing SQLite and index content hashes unchanged; original current/history fixtures, model, engine and policy unchanged",
+    "files_generated_by_cli": "none; private index removed after evaluation; results are terminal or JSON stdout only"
   }
 }

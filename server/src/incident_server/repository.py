@@ -65,12 +65,20 @@ class FixtureRepository:
 
     @classmethod
     def load(cls) -> "FixtureRepository":
-        content = (
-            resources.files("incident_server")
-            .joinpath("fixtures", "incidents.json")
-            .read_text(encoding="utf-8")
+        root = resources.files("incident_server").joinpath("fixtures")
+        original = FixtureData.model_validate_json(
+            root.joinpath("incidents.json").read_text("utf-8")
         )
-        return cls(FixtureData.model_validate_json(content))
+        evaluation = FixtureData.model_validate_json(
+            root.joinpath("evaluation_incidents.json").read_text("utf-8")
+        )
+        return cls(
+            FixtureData(
+                synthetic=True,
+                description="Original examples and separate synthetic evaluation evidence.",
+                results=[*original.results, *evaluation.results],
+            )
+        )
 
     def get(self, source: Source, transaction_id: TransactionId) -> ToolResult:
         """Return found records or an empty result; load/validation errors still raise."""

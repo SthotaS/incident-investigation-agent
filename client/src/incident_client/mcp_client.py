@@ -7,6 +7,7 @@ import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import timedelta
+from pathlib import Path
 from typing import Protocol
 
 from incident_common.models import MAX_TOOL_RESULT_BYTES, TOOL_SOURCES, ToolName, ToolResult
@@ -110,7 +111,12 @@ class MCPGateway:
 
 
 @asynccontextmanager
-async def connect(timeout_seconds: float = 10) -> AsyncIterator[MCPGateway]:
+async def connect(
+    timeout_seconds: float = 10,
+    *,
+    rag_dir: Path | None = None,
+    knowledge_db: Path | None = None,
+) -> AsyncIterator[MCPGateway]:
     """Start the installed server using the same Python environment as this client."""
     # The server receives local storage paths, never the client's API key.
     env = {
@@ -118,6 +124,10 @@ async def connect(timeout_seconds: float = 10) -> AsyncIterator[MCPGateway]:
         for name in ("INCIDENT_RAG_DIR", "INCIDENT_KNOWLEDGE_DB")
         if name in os.environ
     }
+    if rag_dir is not None:
+        env["INCIDENT_RAG_DIR"] = os.fspath(rag_dir)
+    if knowledge_db is not None:
+        env["INCIDENT_KNOWLEDGE_DB"] = os.fspath(knowledge_db)
     params = StdioServerParameters(command=sys.executable, args=["-m", "incident_server"], env=env)
     async with stdio_client(params) as (read, write):
         async with ClientSession(

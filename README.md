@@ -313,6 +313,9 @@ commands display their results in Terminal; they do not create report files.
 # Use an API key already exported in this Terminal.
 .venv/bin/incident-compare
 
+# Measure RAG quality on six synthetic cases; no API key or saved reports.
+.venv/bin/incident-compare --evaluate
+
 # Discover all seven tools, including searchSimilarIncidents.
 .venv/bin/incident-client --list-tools
 
@@ -379,7 +382,7 @@ RUN_RAG_INTEGRATION=1 .venv/bin/python -m pytest -q
 
 Normal tests do not need internet or an API key. Model decision tests use a clearly marked fake
 API response. The real-embedding checks require the prepared local model and index.
-The latest local checks passed 366 tests, including real MCP and embedding checks; Ruff and the
+The latest local checks passed 449 tests, including real MCP and embedding checks; Ruff and the
 wheel build also passed. No paid API calls were used. The GitHub Checks workflow is configured
 but has not been run on GitHub. See `verification.json` for the recorded results.
 

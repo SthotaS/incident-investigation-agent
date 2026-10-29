@@ -1,0 +1,115 @@
+{
+  "synthetic": true,
+  "version": 1,
+  "cases": [
+    {
+      "case_id": "match",
+      "name": "Useful settlement match",
+      "incident_id": "INC-90001",
+      "transaction_id": "TX900001",
+      "relevant_incident_ids": [
+        "INC-09876"
+      ],
+      "relevance_reason": "A past settlement 503 case offers a useful current health check; its old cause remains unproven.",
+      "expected_status": "finished",
+      "expected_stop_reason": "request_answered",
+      "expected_failure_point": "Settlement-service call",
+      "expected_causes": {
+        "broad_service_issue": "possible",
+        "transaction_specific_issue": "less_supported",
+        "recent_deployment": "less_supported"
+      },
+      "anchoring_test": false
+    },
+    {
+      "case_id": "changed_cause",
+      "name": "Similar errors with a related application change",
+      "incident_id": "INC-90002",
+      "transaction_id": "TX900002",
+      "relevant_incident_ids": [
+        "INC-09876",
+        "INC-09741"
+      ],
+      "relevance_reason": "The settlement case is relevant to the 503 symptoms; the billing release case is relevant to the local exception and change review. Neither establishes the current cause.",
+      "expected_status": "finished",
+      "expected_stop_reason": "request_answered",
+      "expected_failure_point": "Settlement-service call",
+      "expected_causes": {
+        "broad_service_issue": "less_supported",
+        "transaction_specific_issue": "possible",
+        "recent_deployment": "possible"
+      },
+      "anchoring_test": true
+    },
+    {
+      "case_id": "misleading",
+      "name": "Past outage conflicts with an isolated current failure",
+      "incident_id": "INC-90003",
+      "transaction_id": "TX900003",
+      "relevant_incident_ids": [
+        "INC-09876"
+      ],
+      "relevance_reason": "The old settlement case is relevant to the initial symptoms and checking health, but copying its broad outage diagnosis would conflict with the current isolated sample.",
+      "expected_status": "finished",
+      "expected_stop_reason": "request_answered",
+      "expected_failure_point": "Settlement-service call",
+      "expected_causes": {
+        "broad_service_issue": "less_supported",
+        "transaction_specific_issue": "possible",
+        "recent_deployment": "less_supported"
+      },
+      "anchoring_test": true
+    },
+    {
+      "case_id": "no_match",
+      "name": "No matching archive incident",
+      "incident_id": "INC-90004",
+      "transaction_id": "TX900004",
+      "relevant_incident_ids": [],
+      "relevance_reason": "None of the five payment seed incidents supplies a useful archive-checksum investigation example. The settlement-specific agent must not invent a match or a payment failure point.",
+      "expected_status": "paused",
+      "expected_stop_reason": "insufficient_evidence",
+      "expected_failure_point": null,
+      "expected_causes": {},
+      "anchoring_test": false
+    },
+    {
+      "case_id": "missing_trace",
+      "name": "History with a missing current trace",
+      "incident_id": "INC-90005",
+      "transaction_id": "TX900005",
+      "relevant_incident_ids": [
+        "INC-09876"
+      ],
+      "relevance_reason": "The historical match is useful as a health lead, but cannot replace the missing current trace or establish the failure point.",
+      "expected_status": "paused",
+      "expected_stop_reason": "insufficient_evidence",
+      "expected_failure_point": null,
+      "expected_causes": {
+        "broad_service_issue": "possible",
+        "transaction_specific_issue": "less_supported",
+        "recent_deployment": "less_supported"
+      },
+      "anchoring_test": true
+    },
+    {
+      "case_id": "paraphrase",
+      "name": "A health lead described with different words",
+      "incident_id": "INC-90006",
+      "transaction_id": "TX900006",
+      "relevant_incident_ids": [
+        "INC-09876"
+      ],
+      "relevance_reason": "Different wording still describes the same service and failure pattern. A health check is a useful lead, while current evidence must establish the finding.",
+      "expected_status": "finished",
+      "expected_stop_reason": "request_answered",
+      "expected_failure_point": "Settlement-service call",
+      "expected_causes": {
+        "broad_service_issue": "possible",
+        "transaction_specific_issue": "less_supported",
+        "recent_deployment": "less_supported"
+      },
+      "anchoring_test": false
+    }
+  ]
+}
