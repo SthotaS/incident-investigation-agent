@@ -169,6 +169,64 @@ retries are disabled; an API failure pauses the run with its current audit trail
 messages for the `AI issue` line. Keys, raw provider bodies, and exception text are excluded.
 This identifies an error category without guessing that a past incident caused the API failure.
 
+## Local setup and troubleshooting
+
+### Locked installation with uv
+
+As an alternative to the Python/pip setup in the README, an existing
+[uv installation](https://docs.astral.sh/uv/getting-started/installation/) can create `.venv`
+and install the versions in `uv.lock`:
+
+```bash
+uv sync --locked --extra dev
+uv run incident-index
+uv run incident-client --use-rag --planner demo
+```
+
+The pip setup uses the version ranges in `pyproject.toml`; uv uses the lock file.
+
+### Settings and local data
+
+[.env.example](../.env.example) lists optional environment settings. Export them in Terminal;
+the app does not load `.env` files automatically. `OPENAI_MODEL` can select a model supporting
+the same structured-output options. `INCIDENT_RAG_DIR` changes the model/index directory;
+build and run must use the same path. `INCIDENT_KNOWLEDGE_DB` selects the approved-decision database.
+
+Tool timeouts default to 10 seconds and API timeouts to 30 seconds. `MAX_API_INPUT_BYTES`
+defaults to 131072 and `MAX_API_CALLS` to 8. API requests are separate from investigation tool
+attempts. These guards do not impose a dollar spending cap; API use is billed to the key's account.
+
+The Python environment, model cache, index, and SQLite data are excluded from Git. A new clone
+starts with the five historical seed cases. Restore `data/knowledge/` separately to retain approved
+decisions, then rebuild with `incident-index`. Use `incident-index --offline` when the model is
+already cached. Index rebuilds retain old generations; they are not removed automatically.
+
+### If the API planner pauses
+
+Transaction, log, and retrieval calls can finish before the first model request. An API error
+pauses with the evidence already collected. Eight calls is a maximum, not a target, and the
+client does not silently switch to demo rules. The `AI issue` line gives a safe error category.
+
+| Message | What to check |
+| --- | --- |
+| HTTP 401 | API key and selected API project |
+| HTTP 403 | Project permissions and model access |
+| HTTP 404 | Model name, access, and any custom API base URL |
+| HTTP 429 credit or quota limit | Available API credit and billing |
+| HTTP 429 project or organization spend limit | The spending limit for the selected project or organization |
+| HTTP 429 organization usage limit | The account's approved API usage limit |
+| HTTP 429 rate limit | Wait before starting another run |
+| HTTP 400 or 422 | Model, output schema, and request settings |
+| Timeout or connection problem | Internet connection, VPN, or proxy settings |
+| HTTP 5xx | API service availability; try another run later |
+| Invalid AI decision | Output format and client version |
+
+For a limit error, check [API billing](https://platform.openai.com/settings/organization/billing/overview)
+and [API limits](https://platform.openai.com/settings/organization/limits) for the same project
+and organization as the key. Adding credit helps only when credit is the problem. The synthetic
+settlement HTTP 503 is separate from an OpenAI API failure. Keys and raw provider responses
+are never printed by the app's error reporting.
+
 ## Code map
 
 | Purpose | Location |
