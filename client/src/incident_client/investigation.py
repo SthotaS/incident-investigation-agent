@@ -32,6 +32,7 @@ from incident_client.policy import (
     available_tools,
     retrieval_query,
 )
+from incident_client.reviewer import review_report
 
 
 def _source_is_relevant(memory: InvestigationMemory, source: Source) -> bool:
@@ -337,7 +338,9 @@ class InvestigationEngine:
             open_causes.insert(
                 0, "Possible settlement-call failure; two-source support is missing."
             )
-        return InvestigationReport(
+        report = InvestigationReport(
+            evidence_snapshot=list(memory.results.values()),
+            failure_point_references=sorted(log_references | trace_references) if supported else [],
             run_id=str(uuid4()),
             mode=request.mode,
             use_rag=request.use_rag,
@@ -383,3 +386,4 @@ class InvestigationEngine:
             next_steps=next_steps,
             audit=memory.audit,
         )
+        return review_report(report)

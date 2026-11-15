@@ -8,6 +8,8 @@ flowchart LR
     Loop --> Planner[API planner or explicit demo planner]
     Planner -->|API mode only| API[OpenAI Responses API]
     Loop --> Gateway[MCP client]
+    Loop -->|Candidate findings and raw records| Review[Evidence Reviewer]
+    Review -->|Reviewed report| Client
     Gateway -->|stdio| Server[Read-only MCP server]
     Server --> Current[Synthetic current records]
     Server --> Search[searchSimilarIncidents]
@@ -40,6 +42,13 @@ Two consecutive steps with no new meaningful evidence pause the cycle sooner. A 
 with no useful result is different from a failed tool, and missing evidence is not proof.
 The agent can finish early when it has answered the request. Otherwise it shows open explanations,
 what was checked and not supported, and asks the engineer whether to continue.
+
+A status-only request can finish after one usable lookup. A full request continues through its
+eligible checks even when the lookup reports `COMPLETED`. Missing transactions, conflicting
+settlement logs and traces, invalid planner actions, insufficient evidence, and exhausted limits
+can pause a run. Two consecutive empty or failed calls can stop a run before the retry ceiling.
+The engine compares structured facts per source to recognize repeats. A new fact can still have
+little diagnostic value.
 
 ## Choosing the next check
 
@@ -134,6 +143,26 @@ settlement-call failure point. If two separate current sources do not support it
 possible failure point. A historical decision is a lead, not proof of this incident's cause.
 Only an engineer confirms root cause and separately approves saving knowledge. Fixes stay manual.
 The added summaries cannot change the eight-call limit or these evidence and approval rules.
+
+## Evidence Reviewer
+
+The engine pairs the proposed findings with the original validated tool results. The Reviewer
+independently checks transaction statuses, current settlement logs and traces, cited deployment
+timestamps, and references. It can resolve citations against monitoring and historical records
+in that snapshot. Verifying a failure point requires current logs and trace evidence. Its rules
+run separately from the planner and cause ranking, with zero external tool or model calls.
+Authenticating a source or completing missing evidence requires separate records.
+
+| Decision | Condition and action |
+| --- | --- |
+| Accept | The checked fields agree with the snapshot. A correct pause can still be accepted. |
+| Revise | Restore clear failure-point references, withdraw an unsupported finding, or move late deployments to opposing evidence. |
+| Escalate | Contradictory records, ambiguous references, wrong-transaction evidence, and remaining citation or timeline defects require engineer review. The report pauses and withholds unverified findings. |
+
+The Reviewer can revise once and recheck the same snapshot. It compares each cited deployment
+time with the first observed settlement failure in the current target's logs and failed trace.
+An earlier deployment can remain a hypothesis. Determining actual onset or deployment causation
+requires additional evidence. See the [shared evaluations](evaluation.md).
 
 ## Read-only tools and historical search
 

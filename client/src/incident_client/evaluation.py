@@ -4,7 +4,9 @@ The answer key stays in this client. Current evidence and the five historical
 seeds are separate corpora. Results go to the terminal, never a reports folder.
 """
 
+import argparse
 import asyncio
+import json
 import os
 import sys
 from contextlib import asynccontextmanager
@@ -13,8 +15,9 @@ from pathlib import Path
 from statistics import mean
 from tempfile import TemporaryDirectory
 from time import monotonic
-from typing import Literal
+from typing import Literal, get_args
 
+from incident_common.hypothesis_models import EvidenceNote
 from incident_common.models import AuditEntry, IncidentId, InvestigationRequest, TransactionId
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -25,9 +28,20 @@ from incident_client.main import _progress
 from incident_client.mcp_client import connect
 from incident_client.metrics import work_metrics
 from incident_client.policy import DemoPlanner
+from incident_client.reviewer import review_report
 
 SEED_IDS = {"INC-09876", "INC-09741", "INC-09632", "INC-09508", "INC-09402"}
-CaseId = Literal["match", "changed_cause", "misleading", "no_match", "missing_trace", "paraphrase"]
+CaseId = Literal[
+    "match",
+    "changed_cause",
+    "misleading",
+    "no_match",
+    "missing_trace",
+    "paraphrase",
+    "late_deployment",
+    "contradictory_records",
+]
+CASE_IDS = get_args(CaseId)
 CauseId = Literal["broad_service_issue", "transaction_specific_issue", "recent_deployment"]
 CauseState = Literal["possible", "less_supported", "needs_evidence"]
 
@@ -42,9 +56,18 @@ class EvaluationCase(BaseModel):
     relevant_incident_ids: list[IncidentId] = Field(max_length=5)
     relevance_reason: str = Field(min_length=1, max_length=700)
     expected_status: Literal["finished", "paused"]
-    expected_stop_reason: Literal["request_answered", "insufficient_evidence"]
+    expected_stop_reason: Literal[
+        "request_answered", "insufficient_evidence", "evidence_review_escalated"
+    ]
     expected_failure_point: Literal["Settlement-service call"] | None
     expected_causes: dict[CauseId, CauseState]
+    supported_conclusions: list[str] = Field(min_length=1)
+    unresolved_hypotheses: list[str] = Field(min_length=1)
+    forbidden_conclusions: list[str] = Field(min_length=1)
+    expected_review_path: list[Literal["accept", "revise", "escalate"]] = Field(
+        default_factory=lambda: ["accept"], min_length=1, max_length=2
+    )
+    expected_review_issue_codes: set[str] = Field(default_factory=set)
     anchoring_test: bool
 
     @model_validator(mode="after")
@@ -63,7 +86,7 @@ class EvaluationSuite(BaseModel):
 
     synthetic: Literal[True]
     version: Literal[1]
-    cases: list[EvaluationCase] = Field(min_length=6, max_length=6)
+    cases: list[EvaluationCase] = Field(min_length=len(CASE_IDS), max_length=len(CASE_IDS))
 
     @model_validator(mode="after")
     def distinct_cases(self):
@@ -76,6 +99,18 @@ class EvaluationSuite(BaseModel):
 def load_cases() -> list[EvaluationCase]:
     text = files("incident_client").joinpath("fixtures", "rag_evaluation.json").read_text("utf-8")
     return EvaluationSuite.model_validate_json(text).cases
+
+
+def review_metrics(report) -> dict:
+    review = report.evidence_review
+    if review is None:
+        return {"review_path": [], "review_issues": [], "review_calls": 0, "review_revisions": 0}
+    return {
+        "review_path": [item.decision for item in review.passes],
+        "review_issues": sorted({issue.code for item in review.passes for issue in item.issues}),
+        "review_calls": review.tool_calls,
+        "review_revisions": review.revisions_used,
+    }
 
 
 def score_run(case, report, *, elapsed_ms: float, call_times: dict[int, float]) -> dict:
@@ -103,7 +138,12 @@ def score_run(case, report, *, elapsed_ms: float, call_times: dict[int, float]) 
         or report.production_changes_made
         or (case.expected_failure_point is None and report.supported_failure_point is not None)
     )
-    quality_ok = finding_ok and all(cause_checks.values()) and not unsafe_claim
+    review = review_metrics(report)
+    review_ok = (
+        review["review_path"] == case.expected_review_path
+        and set(review["review_issues"]) == case.expected_review_issue_codes
+    )
+    quality_ok = finding_ok and all(cause_checks.values()) and not unsafe_claim and review_ok
     matches = report.retrieval.matches if report.retrieval else []
     retrieved = [match.incident_id for match in matches]
     relevant = set(case.relevant_incident_ids)
@@ -126,6 +166,8 @@ def score_run(case, report, *, elapsed_ms: float, call_times: dict[int, float]) 
         "name": case.name,
         "with_rag": report.use_rag,
         **work,
+        **review,
+        "review_check_passed": review_ok,
         "status": report.status,
         "stop_reason": report.stop_reason,
         "operational_error": operational_error,
@@ -383,3 +425,79 @@ def render_evaluation(result: dict) -> str:
         "Timing includes first-use warmup; this tiny set does not prove a general benefit.",
     ]
     return "\n".join(lines)
+
+
+async def run_reviewer_evaluation(gateway) -> list[dict]:
+    """Check the same cases without retrieval and inject two citation defects."""
+    checks = []
+    for case in load_cases():
+        report = await InvestigationEngine(gateway).run(
+            InvestigationRequest(
+                incident_id=case.incident_id, transaction_id=case.transaction_id, use_rag=False
+            )
+        )
+        score = score_run(case, report, elapsed_ms=0, call_times={})
+        checks.append(
+            {
+                "case_id": case.case_id,
+                "probe": "full_run",
+                "passed": score["quality_check_passed"],
+                **review_metrics(report),
+            }
+        )
+        if case.case_id != "match" or not score["quality_check_passed"]:
+            continue
+
+        missing = report.model_copy(update={"failure_point_references": []}, deep=True)
+        invented = report.model_copy(deep=True)
+        invented.cause_assessments[0].supporting_evidence.append(
+            EvidenceNote(reference="synthetic://missing/record", observation="Unverified claim")
+        )
+        fixed = review_report(missing)
+        escalated = review_report(invented)
+        for name, outcome, decision, code, finding_ok in (
+            (
+                "missing_failure_citations",
+                fixed,
+                "accept",
+                "missing_failure_citation",
+                fixed.failure_point_references == report.failure_point_references,
+            ),
+            (
+                "invented_cause_reference",
+                escalated,
+                "escalate",
+                "missing_reference",
+                escalated.status == "paused" and escalated.supported_failure_point is None,
+            ),
+        ):
+            review = review_metrics(outcome)
+            checks.append(
+                {
+                    "case_id": case.case_id,
+                    "probe": name,
+                    "passed": finding_ok
+                    and review["review_path"] == ["revise", decision]
+                    and review["review_issues"] == [code],
+                    **review,
+                }
+            )
+    return checks
+
+
+async def _review_on_mcp() -> list[dict]:
+    async with connect(Settings.from_environment().tool_timeout_seconds) as gateway:
+        return await run_reviewer_evaluation(gateway)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Evaluate the Reviewer on the shared MCP cases.")
+    parser.parse_args()
+    checks = asyncio.run(_review_on_mcp())
+    print(json.dumps({"reviewer_checks": checks}, indent=2))
+    if not all(check["passed"] for check in checks):
+        raise SystemExit(2)
+
+
+if __name__ == "__main__":
+    main()

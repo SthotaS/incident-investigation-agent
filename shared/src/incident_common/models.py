@@ -18,6 +18,7 @@ from pydantic import (
 
 from incident_common.hypothesis_models import CauseAssessment
 from incident_common.rag_models import RetrievalInfo
+from incident_common.review_models import EvidenceReview
 
 TransactionId = Annotated[str, Field(pattern=r"^TX[0-9]{6}$")]
 IncidentId = Annotated[str, Field(pattern=r"^INC-[0-9]{5}$")]
@@ -222,6 +223,9 @@ class ModelUsage(BaseModel):
 
 
 class InvestigationReport(BaseModel):
+    evidence_snapshot: list[ToolResult] = Field(default_factory=list)
+    failure_point_references: list[str] = Field(default_factory=list)
+    evidence_review: EvidenceReview | None = None
     run_id: str
     mode: str = "legacy"
     use_rag: bool = False

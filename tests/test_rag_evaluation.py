@@ -70,7 +70,7 @@ async def scored(case, enabled=True):
     )
 
 
-async def test_six_cases_check_findings_causes_retrieval_and_readiness_separately():
+async def test_shared_cases_check_findings_causes_retrieval_and_readiness_separately():
     runs = []
     for case in evaluation.load_cases():
         for enabled in (False, True):
@@ -82,11 +82,11 @@ async def test_six_cases_check_findings_causes_retrieval_and_readiness_separatel
             assert run["ms_to_finding_or_pause"] == run["calls_to_finding_or_pause"] * 10
             runs.append(run)
     summary = evaluation.summarize(runs)
-    assert summary["without_rag"]["quality_checks_passed"] == 6
-    assert summary["with_rag"]["cause_labels_correct"] == 15
-    assert summary["retrieval"]["precision_among_returned"] == 0.5
-    assert summary["retrieval"]["expected_match_hits"] == 5
-    assert summary["retrieval"]["relevant_records_expected"] == 6
+    assert summary["without_rag"]["quality_checks_passed"] == 8
+    assert summary["with_rag"]["cause_labels_correct"] == 18
+    assert summary["retrieval"]["precision_among_returned"] == 6 / 14
+    assert summary["retrieval"]["expected_match_hits"] == 6
+    assert summary["retrieval"]["relevant_records_expected"] == 7
     assert summary["retrieval"]["anchoring_checks_exercised"] == 3
     assert (
         summary["with_rag"]["mean_calls_to_finding_or_pause"]
@@ -148,10 +148,10 @@ def test_answer_key_is_separate_from_current_evidence_and_historical_corpus():
 
     data = files("incident_server").joinpath("fixtures", "evaluation_incidents.json").read_text()
     assert "expected_" not in data and "relevant_incident_ids" not in data
-    assert len(evaluation.load_cases()) == 6
+    assert len(evaluation.load_cases()) == 8
     assert not ({case.incident_id for case in evaluation.load_cases()} & evaluation.SEED_IDS)
     evidence = json.loads(data)
-    assert len({item["transaction_id"] for item in evidence["results"]}) == 6
+    assert len({item["transaction_id"] for item in evidence["results"]}) == 8
 
 
 async def test_runner_alternates_order_keeps_answers_private_and_closes_fresh_planners(monkeypatch):
@@ -196,9 +196,9 @@ async def test_runner_alternates_order_keeps_answers_private_and_closes_fresh_pl
     monkeypatch.setattr(evaluation, "DemoPlanner", CheckedPlanner)
     monkeypatch.setattr(evaluation, "InvestigationEngine", Engine)
     result = await evaluation.run_evaluation(repeats=2)
-    assert len(planners) == 24 and len(result["runs"]) == 24
+    assert len(planners) == 32 and len(result["runs"]) == 32
     assert [enabled for _, enabled in requests[:4]] == [False, True, True, False]
-    assert requests[0][1] != requests[12][1]
+    assert requests[0][1] != requests[16][1]
     assert all(planner.aclose.await_count == 1 for planner in planners)
     text = evaluation.render_evaluation(result)
     assert (
@@ -278,9 +278,21 @@ def test_cli_rejects_invalid_or_unbounded_evaluation_options(arguments, monkeypa
 )
 async def test_full_evaluation_uses_real_embeddings_and_mcp_without_touching_saved_decisions():
     result = await evaluation.run_evaluation()
-    assert len(result["runs"]) == 12
+    assert len(result["runs"]) == 16
     assert all(run["quality_check_passed"] for run in result["runs"])
-    assert result["summary"]["retrieval"]["expected_match_hits"] == 5
-    assert result["summary"]["retrieval"]["precision_among_returned"] == 0.5
+    assert result["summary"]["retrieval"]["expected_match_hits"] == 6
+    assert result["summary"]["retrieval"]["precision_among_returned"] == 6 / 13
     assert result["summary"]["with_rag"]["mean_tool_calls"] == 6
     assert all(run["model_requests"] == 0 for run in result["runs"])
+
+
+async def test_reviewer_catches_missing_citations_conflicts_and_late_deployments():
+    rows = await evaluation.run_reviewer_evaluation(EvaluationGateway())
+    assert len(rows) == 10
+    assert all(row["passed"] and row["review_calls"] == 0 for row in rows)
+    by_probe = {(row["case_id"], row["probe"]): row for row in rows}
+    assert by_probe["match", "missing_failure_citations"]["review_path"] == ["revise", "accept"]
+    assert by_probe["match", "invented_cause_reference"]["review_path"] == ["revise", "escalate"]
+    assert by_probe["late_deployment", "full_run"]["review_issues"] == ["deployment_after_failure"]
+    conflicting = by_probe["contradictory_records", "full_run"]
+    assert conflicting["review_path"] == ["escalate"] and conflicting["review_revisions"] == 0

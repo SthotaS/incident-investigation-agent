@@ -113,7 +113,7 @@ partial evidence. Report-file export code has been removed; use terminal screens
 ## Evaluate retrieval quality and investigation work
 
 ```bash
-# Six synthetic cases, both modes, real MCP and cached embeddings; no API key.
+# Eight synthetic cases, both modes, real MCP and cached embeddings; no API key.
 .venv/bin/incident-compare --evaluate
 
 # Repeat the paired checks; run order alternates and both use the same investigation loop.
@@ -123,12 +123,11 @@ partial evidence. Report-file export code has been removed; use terminal screens
 .venv/bin/incident-compare --evaluate --case misleading --planner openai --ask-key
 ```
 
-The six current incidents cover a useful match, a related recent change, misleading outage
-history, no useful historical match, a missing trace, and a paraphrased health lead. The archive
-case is outside the settlement tools' supported evidence; a correct result is a pause, not a
-made-up payment finding. Expected findings, cause labels, and relevance judgments are in the
-client's `fixtures/rag_evaluation.json`. They are not passed to the planner or indexed. MCP
-serves only the current records in `server/fixtures/evaluation_incidents.json`.
+The current cases cover matched and misleading history, a missing trace, an unrelated workload,
+different wording, a coincident change, a deployment after failure, and contradictory records.
+The expected findings and failed assertions live in the client's `fixtures/rag_evaluation.json`.
+The server serves the raw current records in `server/src/incident_server/fixtures/evaluation_incidents.json`.
+See the [shared cases and latest results](evaluation.md).
 
 Evaluation builds a disposable index containing only the five fixed historical seeds, using
 the already cached embedding model. It uses an empty private knowledge path, so your saved

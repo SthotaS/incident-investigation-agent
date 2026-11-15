@@ -141,7 +141,7 @@ async def test_two_different_tools_cannot_reuse_one_reference_as_two_sources(res
     assert not report.root_cause_confirmed
 
 
-async def test_a_separate_trace_reference_can_supply_independent_support(results):
+async def test_reviewer_escalates_ambiguous_reference_even_with_separate_trace(results):
     trace = results[ToolName.TRACES]
     reused = trace.records[0].model_copy(
         update={
@@ -151,8 +151,12 @@ async def test_a_separate_trace_reference_can_supply_independent_support(results
     )
     results[ToolName.TRACES] = trace.model_copy(update={"records": [reused, *trace.records]})
     report = await InvestigationEngine(FakeGateway(results)).run(InvestigationRequest())
-    assert report.status == "finished"
-    assert report.supported_failure_point == "Settlement-service call"
+    assert report.status == "paused"
+    assert report.stop_reason == "evidence_review_escalated"
+    assert report.supported_failure_point is None
+    assert not report.failure_point_references
+    assert report.evidence_review.passes[-1].decision == "escalate"
+    assert report.evidence_review.passes[-1].issues[0].code == "conflicting_reference"
 
 
 async def test_unrelated_records_do_not_complete_a_full_investigation(results):

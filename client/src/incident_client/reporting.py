@@ -75,6 +75,7 @@ def render_summary(report: InvestigationReport) -> str:
         "tool_retry_limit": "failed tool reached its retry limit",
         "transaction_not_found": "transaction not found",
         "conflicting_evidence": "evidence conflicts",
+        "evidence_review_escalated": "evidence review requires an engineer",
         "insufficient_evidence": "more current evidence needed",
     }
     mode = {"with-rag": "with RAG", "without-rag": "without RAG", "legacy": "demo"}.get(
@@ -96,6 +97,17 @@ def render_summary(report: InvestigationReport) -> str:
         f"Status: {report.status.capitalize()} - {reason}. "
         f"Calls: {report.calls_used}/{report.call_limit}."
     )
+    if report.evidence_review and report.evidence_review.passes:
+        final_review = report.evidence_review.passes[-1]
+        lines.append(
+            "Evidence review: "
+            + final_review.decision
+            + f"; revisions: {report.evidence_review.revisions_used}/1."
+        )
+        if final_review.decision == "escalate" and final_review.issues:
+            lines.append(
+                "  " + shorten(final_review.issues[0].detail, width=150, placeholder="...")
+            )
     if report.planner_error:
         lines.append("AI issue: " + shorten(report.planner_error, width=160, placeholder="..."))
     if report.retrieval is not None:

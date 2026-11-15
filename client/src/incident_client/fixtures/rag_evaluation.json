@@ -19,7 +19,17 @@
         "transaction_specific_issue": "less_supported",
         "recent_deployment": "less_supported"
       },
-      "anchoring_test": false
+      "anchoring_test": false,
+      "supported_conclusions": [
+        "Current logs and trace locate the failed settlement call. Nearby failures support checking for a shared service issue."
+      ],
+      "unresolved_hypotheses": [
+        "Why several requests failed."
+      ],
+      "forbidden_conclusions": [
+        "A complete settlement outage or a release as the cause.",
+        "The current root cause is confirmed."
+      ]
     },
     {
       "case_id": "changed_cause",
@@ -39,7 +49,17 @@
         "transaction_specific_issue": "possible",
         "recent_deployment": "possible"
       },
-      "anchoring_test": true
+      "anchoring_test": true,
+      "supported_conclusions": [
+        "The settlement call failed. The sample favors a transaction-specific lead. The 09:59 billing deployment predates the failure."
+      ],
+      "unresolved_hypotheses": [
+        "Whether the field-mapping change contributed to the failed request."
+      ],
+      "forbidden_conclusions": [
+        "Deployment causation inferred from timing or the old billing case.",
+        "The current root cause is confirmed."
+      ]
     },
     {
       "case_id": "misleading",
@@ -58,7 +78,17 @@
         "transaction_specific_issue": "possible",
         "recent_deployment": "less_supported"
       },
-      "anchoring_test": true
+      "anchoring_test": true,
+      "supported_conclusions": [
+        "The target settlement call failed and nearby transactions in the sample succeeded."
+      ],
+      "unresolved_hypotheses": [
+        "What made this transaction different."
+      ],
+      "forbidden_conclusions": [
+        "A shared-service outage inferred from historic symptoms.",
+        "The current root cause is confirmed."
+      ]
     },
     {
       "case_id": "no_match",
@@ -71,7 +101,17 @@
       "expected_stop_reason": "insufficient_evidence",
       "expected_failure_point": null,
       "expected_causes": {},
-      "anchoring_test": false
+      "anchoring_test": false,
+      "supported_conclusions": [
+        "The archive checksum case is outside the settlement tools. A settlement finding is unavailable."
+      ],
+      "unresolved_hypotheses": [
+        "Why the checksum job failed."
+      ],
+      "forbidden_conclusions": [
+        "A settlement failure or a useful payment-history match.",
+        "The current root cause is confirmed."
+      ]
     },
     {
       "case_id": "missing_trace",
@@ -90,7 +130,17 @@
         "transaction_specific_issue": "less_supported",
         "recent_deployment": "less_supported"
       },
-      "anchoring_test": true
+      "anchoring_test": true,
+      "supported_conclusions": [
+        "Current logs show settlement HTTP 503 and monitoring shows nearby failures. The trace is missing."
+      ],
+      "unresolved_hypotheses": [
+        "Where retries stopped and what caused the errors."
+      ],
+      "forbidden_conclusions": [
+        "A supported settlement failure point based on history and logs alone.",
+        "The current root cause is confirmed."
+      ]
     },
     {
       "case_id": "paraphrase",
@@ -109,7 +159,82 @@
         "transaction_specific_issue": "less_supported",
         "recent_deployment": "less_supported"
       },
-      "anchoring_test": false
+      "anchoring_test": false,
+      "supported_conclusions": [
+        "Current logs and trace locate the failed settlement call. Monitoring supports checking for a wider service issue."
+      ],
+      "unresolved_hypotheses": [
+        "Why several settlement requests failed."
+      ],
+      "forbidden_conclusions": [
+        "A cause confirmed from similar historical wording.",
+        "The current root cause is confirmed."
+      ]
+    },
+    {
+      "case_id": "late_deployment",
+      "name": "Deployment after the first observed failure",
+      "incident_id": "INC-90007",
+      "transaction_id": "TX900007",
+      "relevant_incident_ids": [
+        "INC-09876"
+      ],
+      "relevance_reason": "A past settlement 503 case offers a useful current health check; its old cause remains unproven.",
+      "expected_status": "finished",
+      "expected_stop_reason": "request_answered",
+      "expected_failure_point": "Settlement-service call",
+      "expected_causes": {
+        "broad_service_issue": "possible",
+        "transaction_specific_issue": "less_supported",
+        "recent_deployment": "less_supported"
+      },
+      "anchoring_test": false,
+      "expected_review_path": [
+        "revise",
+        "accept"
+      ],
+      "expected_review_issue_codes": [
+        "deployment_after_failure"
+      ],
+      "supported_conclusions": [
+        "The settlement call failed before the 10:05 deployment. Nearby failures support a shared-service lead."
+      ],
+      "unresolved_hypotheses": [
+        "What initiated the failures."
+      ],
+      "forbidden_conclusions": [
+        "The later deployment initiated the earlier failure.",
+        "The current root cause is confirmed."
+      ]
+    },
+    {
+      "case_id": "contradictory_records",
+      "name": "Transaction status records give incompatible results",
+      "incident_id": "INC-90008",
+      "transaction_id": "TX900008",
+      "relevant_incident_ids": [],
+      "relevance_reason": "Resolve the conflicting current transaction records before using older incidents to guide a diagnosis.",
+      "expected_status": "paused",
+      "expected_stop_reason": "evidence_review_escalated",
+      "expected_failure_point": null,
+      "expected_causes": {},
+      "anchoring_test": false,
+      "expected_review_path": [
+        "escalate"
+      ],
+      "expected_review_issue_codes": [
+        "contradictory_transactions"
+      ],
+      "supported_conclusions": [
+        "Current records give conflicting transaction statuses at the same observation time."
+      ],
+      "unresolved_hypotheses": [
+        "Which transaction status is authoritative and what happened during settlement."
+      ],
+      "forbidden_conclusions": [
+        "A definitive transaction status or a supported failure point before reconciliation.",
+        "The current root cause is confirmed."
+      ]
     }
   ]
 }

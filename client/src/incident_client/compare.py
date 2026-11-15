@@ -77,19 +77,21 @@ async def run_comparison(
 
 
 def main() -> None:
+    from incident_client.evaluation import CASE_IDS
+
     parser = argparse.ArgumentParser(description="Compare the same incident without and with RAG.")
     parser.add_argument("--planner", choices=["openai", "demo"], default=None)
     parser.add_argument("--ask-key", action="store_true", help="Read an API key without saving it")
     parser.add_argument("--verbose", action="store_true", help="Show full live action details")
     parser.add_argument(
-        "--evaluate", action="store_true", help="Run six labeled synthetic RAG cases"
+        "--evaluate", action="store_true", help="Run the labeled synthetic RAG cases"
     )
     parser.add_argument("--repeats", type=int, choices=range(1, 4), default=1)
     parser.add_argument(
         "--case",
         dest="case_id",
-        choices=["match", "changed_cause", "misleading", "no_match", "missing_trace", "paraphrase"],
-        help="Evaluate one case instead of all six",
+        choices=CASE_IDS,
+        help="Evaluate one case instead of the full suite",
     )
     parser.add_argument("--json", action="store_true", help="Print structured results to stdout")
     args = parser.parse_args()

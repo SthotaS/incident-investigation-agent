@@ -65,8 +65,11 @@ the app does not load `.env` files automatically. An alternative
 # Investigate with RAG using Python rules; no API key.
 .venv/bin/incident-client --use-rag --planner demo
 
-# Evaluate six synthetic cases with and without RAG; no API key.
+# Evaluate eight synthetic cases with and without RAG; no API key.
 .venv/bin/incident-compare --evaluate
+
+# Evaluate Reviewer decisions on the shared cases.
+.venv/bin/python -m incident_client.evaluation
 
 # Review and explicitly approve saving a human decision and action.
 .venv/bin/incident-knowledge save
@@ -92,5 +95,5 @@ RUN_RAG_INTEGRATION=1 .venv/bin/python -m pytest -q
 ```
 
 More detail: [architecture and reasoning choice](docs/architecture.md),
-[RAG design and evaluation](docs/rag-module.md),
+[RAG design](docs/rag-module.md), [shared evaluation results](docs/evaluation.md),
 and [saving human decisions](docs/human-decisions.md).
