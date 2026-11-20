@@ -113,7 +113,8 @@ def main() -> None:
             decision = _interactive_decision()
             if not args.approve_save:
                 approved = input(
-                    "Save this reviewed record for future searches? Type SAVE: "
+                    "Save this reviewed record (overwrite if this incident already exists)? "
+                    "Type SAVE: "
                 ).strip()
                 if approved != "SAVE":
                     print("Save cancelled. No record was written.")

@@ -90,5 +90,5 @@ class HumanDecisionRecord(HumanDecisionInput):
 class SaveResult(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    status: Literal["saved", "already_saved"]
+    status: Literal["saved", "updated", "already_saved"]
     record: HumanDecisionRecord

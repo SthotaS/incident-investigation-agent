@@ -71,7 +71,7 @@ class KnowledgeStoreError(RuntimeError):
 
 
 class DecisionConflictError(KnowledgeStoreError):
-    """An incident ID already has a different approved decision."""
+    """An incident ID is reserved for a packaged historical case."""
 
 
 def get_database_path() -> Path:
@@ -185,7 +185,7 @@ class DecisionStore:
         *,
         approve_save: bool,
     ) -> SaveResult:
-        """Save one immutable approved record; identical repeat saves are idempotent."""
+        """Save or replace an approved decision; identical repeat saves are idempotent."""
         if approve_save is not True:
             raise KnowledgeStoreError(
                 "Saving requires explicit human approval with --approve-save."
@@ -195,7 +195,6 @@ class DecisionStore:
         validated = HumanDecisionInput.model_validate(decision)
         if validated.incident_id in self.reserved_ids:
             raise DecisionConflictError("This incident ID belongs to a packaged historical case.")
-        record = HumanDecisionRecord(**validated.model_dump(), saved_at=datetime.now(UTC))
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             with closing(sqlite3.connect(self.path, timeout=5)) as connection:
@@ -212,13 +211,9 @@ class DecisionStore:
                     if old is not None:
                         existing = _record_from_row(old)
                         existing_input = existing.model_dump(exclude={"saved_at", "record_source"})
-                        if existing_input != validated.model_dump():
-                            raise DecisionConflictError(
-                                "This incident already has a different approved decision; "
-                                "the saved record was not changed."
-                            )
-                        return SaveResult(status="already_saved", record=existing)
-                    if self.max_records is not None:
+                        if existing_input == validated.model_dump():
+                            return SaveResult(status="already_saved", record=existing)
+                    if old is None and self.max_records is not None:
                         saved_count = connection.execute(
                             "SELECT COUNT(*) FROM human_decisions"
                         ).fetchone()[0]
@@ -226,16 +221,25 @@ class DecisionStore:
                             raise KnowledgeStoreError(
                                 "The saved-incident limit has been reached. No record was written."
                             )
+                    record = HumanDecisionRecord(
+                        **validated.model_dump(), saved_at=datetime.now(UTC)
+                    )
                     values = record.model_dump(mode="json")
                     values["evidence_references"] = json.dumps(record.evidence_references)
                     values["synthetic"] = 1
                     placeholders = ", ".join("?" for _ in COLUMNS)
                     columns = ", ".join(COLUMNS)
+                    updates = ", ".join(
+                        f"{column} = excluded.{column}"
+                        for column in COLUMNS
+                        if column != "incident_id"
+                    )
                     connection.execute(
-                        f"INSERT INTO human_decisions ({columns}) VALUES ({placeholders})",
+                        f"INSERT INTO human_decisions ({columns}) VALUES ({placeholders}) "
+                        f"ON CONFLICT(incident_id) DO UPDATE SET {updates}",
                         tuple(values[column] for column in COLUMNS),
                     )
-                return SaveResult(status="saved", record=record)
+                return SaveResult(status="updated" if old is not None else "saved", record=record)
         except (sqlite3.Error, OSError) as exc:
             raise KnowledgeStoreError(
                 "Could not save the approved decision to the database."

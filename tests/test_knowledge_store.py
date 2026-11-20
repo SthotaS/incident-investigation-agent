@@ -1,7 +1,8 @@
 """Real SQLite checks for explicit human approval and durable decision storage."""
 
 import sqlite3
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 
 import pytest
 from incident_common.knowledge_models import HumanDecisionInput
@@ -63,13 +64,68 @@ def test_same_decision_is_idempotent_and_preserves_original_saved_time(tmp_path,
     assert len(store.list()) == 1
 
 
-def test_conflicting_decision_does_not_overwrite_approved_record(tmp_path, decision):
+def test_changed_decision_overwrites_complete_record_and_refreshes_save_time(
+    tmp_path, monkeypatch, decision
+):
+    store = DecisionStore(tmp_path / "incidents.sqlite3")
+    original = store.save(
+        decision.model_copy(
+            update={
+                "confirmed_root_cause": "A synthetic service outage.",
+                "occurred_at": datetime(2026, 10, 22, 10, tzinfo=UTC),
+            }
+        ),
+        approve_save=True,
+    ).record
+    changed = decision.model_copy(
+        update={
+            "title": "Updated synthetic incident",
+            "symptoms": "A new observation after service recovery.",
+            "service": "settlement-recovery",
+            "human_decision": "Review the updated evidence before another attempt.",
+            "action_taken": "The engineer checked recovery; no replay was needed.",
+            "outcome": "improved",
+            "approved_by": "Another synthetic engineer",
+            "evidence_references": [],
+            "useful_check": "get_monitoring",
+            "check_reason": "Check the latest service health.",
+        }
+    )
+    saved_at = original.saved_at + timedelta(seconds=1)
+    monkeypatch.setattr(
+        "incident_server.knowledge.datetime", SimpleNamespace(now=lambda _: saved_at)
+    )
+
+    updated = store.save(changed, approve_save=True)
+
+    assert updated.status == "updated"
+    assert updated.record.saved_at == saved_at
+    assert updated.record.model_dump(exclude={"saved_at", "record_source"}) == changed.model_dump()
+    assert DecisionStore(store.path).list() == [updated.record]
+    assert store.get(decision.incident_id).confirmed_root_cause is None
+    assert store.get(decision.incident_id).occurred_at is None
+
+
+@pytest.mark.parametrize("approve_save", [False, None, 1, "SAVE"])
+def test_unapproved_overwrite_preserves_saved_record(tmp_path, decision, approve_save):
     store = DecisionStore(tmp_path / "incidents.sqlite3")
     original = store.save(decision, approve_save=True).record
-    changed = decision.model_copy(update={"action_taken": "A different synthetic action."})
-    with pytest.raises(DecisionConflictError, match="not changed"):
-        store.save(changed, approve_save=True)
-    assert store.get(decision.incident_id) == original
+    changed = decision.model_copy(update={"action_taken": "A different approved action."})
+
+    with pytest.raises(KnowledgeStoreError, match="explicit human approval"):
+        store.save(changed, approve_save=approve_save)
+
+    assert store.list() == [original]
+
+
+def test_invalid_overwrite_preserves_saved_record(tmp_path, decision):
+    store = DecisionStore(tmp_path / "incidents.sqlite3")
+    original = store.save(decision, approve_save=True).record
+
+    with pytest.raises(ValidationError):
+        store.save({**decision.model_dump(), "action_taken": " "}, approve_save=True)
+
+    assert store.list() == [original]
 
 
 def test_reserved_seed_id_rejected_before_creating_database(tmp_path, decision):

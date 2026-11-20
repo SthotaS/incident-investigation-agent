@@ -19,7 +19,9 @@ still unknown. The accepted outcome values are `resolved`, `improved`, `no_chang
 yet; waiting for service recovery.”
 
 The command displays the record for review. Type `SAVE` to approve storing it, or anything else to
-cancel. This is an explicit human save step. The investigation agent cannot call it as an MCP tool.
+cancel. If that incident ID already has a saved decision, `SAVE` approves replacing it with the
+reviewed record. This is an explicit human save step. The investigation agent cannot call it as
+an MCP tool.
 The engineer name is entered by the local operator; multi-user login and identity checks are not
 part of this capstone version.
 
@@ -49,15 +51,17 @@ data/knowledge/incidents.sqlite3
 | human_decision | What the engineer decided and why |
 | action_taken | What actually happened, rather than a suggested action |
 | outcome | Resolved, improved, no change, pending, or unknown |
-| approved_by, saved_at | Operator-entered engineer name and system-generated UTC save time |
+| approved_by, saved_at | Operator-entered engineer name and UTC time of the latest changed save |
 | confirmed_root_cause | Optional engineer-confirmed cause; can remain empty |
 | evidence_references | Synthetic source references supporting the record |
 | useful_check, check_reason | A suggested read-only check for a future similar incident |
 | occurred_at, synthetic, record_source | Optional incident time, synthetic-data marker, and record type |
 
 All learning records remain explicitly synthetic. Existing five synthetic seed IDs cannot be
-replaced. Saving an identical record twice returns `already_saved`. A different record with the
-same incident ID is rejected and leaves the original record intact; revisions are a later feature.
+replaced. A new incident returns `saved`. Saving changed details for the same incident ID replaces
+the complete saved record, refreshes `saved_at`, and returns `updated`. Only one record is kept per
+incident ID; previous versions are not retained. Saving identical details returns `already_saved`
+and preserves the timestamp. Each approved save also attempts to rebuild the search index.
 
 ## Read saved records
 
@@ -80,9 +84,9 @@ rejected. Review the complete file, then run:
 ```
 
 `--approve-save` is your explicit approval of that file. Without the flag, file-based saves are
-rejected. The example at `docs/examples/human-decision-example.json` contains an invented decision
-and invented action for demonstration; it is not your decision and has not been saved to your
-project database automatically.
+rejected. It also approves replacing a saved decision with the same incident ID. The example at
+`docs/examples/human-decision-example.json` contains an invented decision and invented action for
+demonstration; it is not your decision and has not been saved to your project database automatically.
 
 ## How a future incident finds the record
 
@@ -130,7 +134,7 @@ location. Use the same settings for saving and investigation; both paths are pas
 server, while an API key stays in the client.
 
 Tests use private temporary databases. They cover persistence, approval, blank fields, duplicate
-saves, conflicting records, database corruption, full decision/action retrieval, current-incident
+saves, approved overwrites, database corruption, full decision/action retrieval, current-incident
 exclusion, stale index detection, and saved data surviving an index failure. A separate real-model
 smoke test saved and retrieved an invented example through actual MCP calls; it did not add a
 record to the project database or contact an API model.

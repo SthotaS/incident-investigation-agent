@@ -1,6 +1,7 @@
 """SQLite-to-FAISS integration using real files and small, offline embeddings."""
 
 import json
+import sys
 
 import numpy as np
 import pytest
@@ -227,18 +228,139 @@ def test_repeat_save_does_not_duplicate_or_change_corpus_fingerprint(
     assert rag.get_index().metadata.fingerprint == fingerprint
 
 
-def test_conflicting_save_preserves_database_record_and_search_index(
+def test_changed_save_updates_database_and_cached_search_context(
     local_knowledge, approved_decision
 ):
     first = knowledge_cli.save_and_index(approved_decision, approve_save=True)
     fingerprint = rag.get_index().metadata.fingerprint
-    different = approved_decision.model_copy(update={"action_taken": "Different synthetic action."})
-    with pytest.raises(DecisionConflictError, match="not changed"):
-        knowledge_cli.save_and_index(different, approve_save=True)
+    different = approved_decision.model_copy(
+        update={
+            "human_decision": "Review recovery using the latest synthetic evidence.",
+            "action_taken": "Different synthetic action.",
+            "outcome": "pending",
+            "confirmed_root_cause": None,
+        }
+    )
+
+    updated = knowledge_cli.save_and_index(different, approve_save=True)
+
+    assert updated["status"] == "updated"
+    assert updated["search_index_updated"] is True
+    assert updated["record"] != first["record"]
     assert (
         DecisionStore().get(approved_decision.incident_id).model_dump(mode="json")
-        == first["record"]
+        == updated["record"]
     )
+    assert len(DecisionStore().list()) == 1
+    assert len(rag.load_cases()) == 6
+    assert rag.get_index().metadata.fingerprint != fingerprint
+    retrieved = rag.search_similar_incidents("TX784521", "recoverymarker").records[0]
+    assert retrieved.facts["human_decision"] == different.human_decision
+    assert retrieved.facts["action_taken"] == different.action_taken
+    assert retrieved.facts["outcome"] == "pending"
+    assert retrieved.facts["past_root_cause"] is None
+
+
+def test_overwrite_survives_failed_rebuild_and_rejects_stale_cached_context(
+    local_knowledge, approved_decision, monkeypatch
+):
+    knowledge_cli.save_and_index(approved_decision, approve_save=True)
+    rag.get_index()
+    changed = approved_decision.model_copy(update={"action_taken": "Updated recovery action."})
+    rebuild = knowledge_cli.build_index
+
+    def failed_rebuild(**kwargs):
+        raise rag.RagIndexError("Synthetic index failure.")
+
+    monkeypatch.setattr(knowledge_cli, "build_index", failed_rebuild)
+    updated = knowledge_cli.save_and_index(changed, approve_save=True)
+
+    assert updated["status"] == "updated"
+    assert updated["search_index_updated"] is False
+    assert updated["index_error"]
+    assert DecisionStore().get(changed.incident_id).action_taken == changed.action_taken
+    with pytest.raises(rag.RagIndexError, match="stale"):
+        rag.search_similar_incidents("TX784521", "recoverymarker")
+    rebuild(local_files_only=True)
+    retrieved = rag.search_similar_incidents("TX784521", "recoverymarker").records[0]
+    assert retrieved.facts["action_taken"] == changed.action_taken
+
+
+@pytest.mark.parametrize("entry_mode", ["interactive", "file"])
+def test_save_cli_overwrites_approved_incident_and_reports_updated(
+    local_knowledge, approved_decision, monkeypatch, capsys, tmp_path, entry_mode
+):
+    knowledge_cli.save_and_index(approved_decision, approve_save=True)
+    changed = approved_decision.model_copy(
+        update={
+            "incident_id": "INC-10234",
+            "human_decision": "A brief settlement-service outage left the transaction unprocessed.",
+            "action_taken": "Manually triggered the settlement endpoint.",
+            "outcome": "resolved",
+            "confirmed_root_cause": "Settlement-service outage.",
+        }
+    )
+    knowledge_cli.save_and_index(
+        approved_decision.model_copy(update={"incident_id": changed.incident_id}),
+        approve_save=True,
+    )
+    prompts = []
+    arguments = ["incident-knowledge", "save"]
+    if entry_mode == "file":
+        source = tmp_path / "decision.json"
+        source.write_text(changed.model_dump_json())
+        arguments.extend(["--file", str(source), "--approve-save"])
+    else:
+        answers = iter(
+            [
+                "",  # Use the default incident ID from the user's example.
+                changed.title,
+                changed.symptoms,
+                changed.service,
+                changed.human_decision,
+                changed.action_taken,
+                changed.outcome,
+                changed.approved_by,
+                changed.confirmed_root_cause,
+                "SAVE",
+            ]
+        )
+
+        def answer(prompt):
+            prompts.append(prompt)
+            return next(answers)
+
+        monkeypatch.setattr("builtins.input", answer)
+    monkeypatch.setattr(sys, "argv", arguments)
+
+    knowledge_cli.main()
+
+    output = capsys.readouterr().out
+    assert "updated: INC-10234" in output
+    assert "Search index updated: yes" in output
+    stored = DecisionStore().get(changed.incident_id)
+    assert stored.human_decision == changed.human_decision
+    assert stored.action_taken == changed.action_taken
+    assert stored.outcome == "resolved"
+    assert len(DecisionStore().list()) == 2
+    if entry_mode == "interactive":
+        assert "overwrite" in prompts[-1]
+
+
+def test_save_cli_cancellation_preserves_existing_decision(
+    local_knowledge, approved_decision, monkeypatch, capsys
+):
+    first = knowledge_cli.save_and_index(approved_decision, approve_save=True)
+    fingerprint = rag.get_index().metadata.fingerprint
+    changed = approved_decision.model_copy(update={"action_taken": "Updated recovery action."})
+    monkeypatch.setattr(knowledge_cli, "_interactive_decision", lambda: changed)
+    monkeypatch.setattr("builtins.input", lambda _: "cancel")
+    monkeypatch.setattr(sys, "argv", ["incident-knowledge", "save"])
+
+    knowledge_cli.main()
+
+    assert "Save cancelled" in capsys.readouterr().out
+    assert DecisionStore().get(changed.incident_id).model_dump(mode="json") == first["record"]
     assert rag.get_index().metadata.fingerprint == fingerprint
 
 

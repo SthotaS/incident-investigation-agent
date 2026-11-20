@@ -1,12 +1,13 @@
 """Bounded, approved knowledge saves under real SQLite write contention."""
 
 from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime
 from threading import Barrier
 
 import pytest
 from incident_common.knowledge_models import HumanDecisionInput
 from incident_server import knowledge_cli
-from incident_server.knowledge import DecisionConflictError, DecisionStore, KnowledgeStoreError
+from incident_server.knowledge import DecisionStore, KnowledgeStoreError
 from pydantic import ValidationError
 
 
@@ -37,12 +38,26 @@ def test_capacity_rejects_new_record_without_changing_saved_decision(tmp_path, d
     assert store.save(decision, approve_save=True).status == "already_saved"
 
 
-def test_conflict_still_reports_existing_record_at_capacity(tmp_path, decision):
+def test_approved_update_replaces_existing_record_at_capacity(tmp_path, decision):
     store = DecisionStore(tmp_path / "incidents.sqlite3", max_records=1)
-    store.save(decision, approve_save=True)
-    changed = decision.model_copy(update={"action_taken": "A different approved action."})
-    with pytest.raises(DecisionConflictError, match="not changed"):
-        store.save(changed, approve_save=True)
+    original = store.save(decision, approve_save=True).record
+    changed = decision.model_copy(
+        update={
+            "human_decision": "The service recovered; manually process the transaction.",
+            "action_taken": "The engineer triggered the settlement endpoint.",
+            "outcome": "resolved",
+            "approved_by": "Another synthetic engineer",
+        }
+    )
+    before_update = datetime.now(UTC)
+    result = store.save(changed, approve_save=True)
+
+    assert result.status == "updated"
+    assert result.record.model_dump(exclude={"saved_at", "record_source"}) == changed.model_dump()
+    assert result.record.saved_at >= before_update
+    assert result.record.saved_at > original.saved_at
+    assert store.list() == [result.record]
+    assert store.save(changed, approve_save=True).status == "already_saved"
 
 
 def test_concurrent_new_saves_cannot_exceed_capacity(tmp_path, decision):
@@ -83,6 +98,46 @@ def test_concurrent_identical_saves_are_idempotent_at_capacity(tmp_path, decisio
     assert len(DecisionStore(path).list()) == 1
 
 
+def test_concurrent_approved_updates_leave_one_complete_record_at_capacity(tmp_path, decision):
+    path = tmp_path / "incidents.sqlite3"
+    store = DecisionStore(path, max_records=1)
+    store.save(decision, approve_save=True)
+    writers = 6
+    barrier = Barrier(writers)
+    payloads = [
+        decision.model_copy(
+            update={
+                "title": f"Reviewed incident from writer {number}",
+                "symptoms": f"Synthetic observations reviewed by writer {number}.",
+                "human_decision": f"Approved decision from writer {number}.",
+                "action_taken": f"Manual action from writer {number}.",
+                "outcome": "resolved" if number % 2 else "pending",
+                "approved_by": f"Synthetic engineer {number}",
+                "confirmed_root_cause": f"Synthetic cause reported by writer {number}.",
+                "evidence_references": [f"synthetic://logs/writer-{number}"],
+                "check_reason": f"Check suggested by writer {number}.",
+            }
+        )
+        for number in range(writers)
+    ]
+
+    def save_one(payload):
+        barrier.wait(timeout=10)
+        return DecisionStore(path, max_records=1).save(payload, approve_save=True)
+
+    with ThreadPoolExecutor(max_workers=writers) as pool:
+        results = list(pool.map(save_one, payloads))
+
+    for payload, result in zip(payloads, results, strict=True):
+        assert result.status == "updated"
+        assert (
+            result.record.model_dump(exclude={"saved_at", "record_source"}) == payload.model_dump()
+        )
+    records = store.list()
+    assert len(records) == 1
+    assert records[0] in [result.record for result in results]
+
+
 @pytest.mark.parametrize("maximum", [0, -1, True, 1.5, "2"])
 def test_invalid_capacity_is_rejected_without_creating_data(tmp_path, maximum):
     path = tmp_path / "missing" / "incidents.sqlite3"
@@ -121,8 +176,14 @@ def test_save_cli_reserves_capacity_for_seed_cases(tmp_path, monkeypatch, decisi
     with pytest.raises(KnowledgeStoreError, match="limit"):
         knowledge_cli.save_and_index(extra, approve_save=True)
 
-    assert len(index_updates) == 1
-    assert len(DecisionStore(database).list()) == 1
+    changed = decision.model_copy(update={"action_taken": "A different approved manual action."})
+    updated = knowledge_cli.save_and_index(changed, approve_save=True)
+    assert updated["status"] == "updated"
+    assert updated["search_index_updated"]
+    assert len(index_updates) == 2
+    records = DecisionStore(database).list()
+    assert len(records) == 1
+    assert records[0].action_taken == changed.action_taken
 
 
 def test_reference_size_and_count_limits(decision):
