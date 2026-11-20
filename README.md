@@ -109,13 +109,15 @@ can be rebuilt with `incident-index`.
 
 ### Investigate with OpenAI
 
-Run the included example with current evidence only:
-
 ```bash
 .venv/bin/incident-client --incident-id INC-10234 --transaction-id TX784521 \
   --use-rag --planner openai --ask-key
 ```
 
+### Investigate without OpenAI, using python rules
+```
+.venv/bin/incident-client --planner demo
+```
 ### Read the results
 
 The terminal shows investigation progress followed by a summary of the supported failure
