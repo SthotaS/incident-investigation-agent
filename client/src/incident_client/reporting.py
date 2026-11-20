@@ -48,7 +48,7 @@ def render_progress(entry: AuditEntry | SkippedCheck, *, verbose: bool = False) 
         if entry.decision_references:
             lines.append("  Decision sources: " + ", ".join(entry.decision_references))
         return "\n".join(lines)
-    observation = shorten(entry.observation, width=125, placeholder="...")
+    observation = entry.observation
     if entry.tool in (ToolName.SIMILAR, ToolName.HISTORY) and entry.status == "found":
         ids = list(
             dict.fromkeys(
@@ -61,7 +61,7 @@ def render_progress(entry: AuditEntry | SkippedCheck, *, verbose: bool = False) 
             observation = "Past cases: " + ", ".join(ids)
     lines = [f"[{entry.call_number}/8] {_TOOL_LABELS[entry.tool]}: {entry.status}; {observation}"]
     if entry.tool in (ToolName.TRACES, ToolName.MONITORING, ToolName.DEPLOYMENTS):
-        lines.append("  Why: " + shorten(entry.reason, width=150, placeholder="..."))
+        lines.append("  Why: " + entry.reason)
     return "\n".join(lines)
 
 

@@ -52,17 +52,12 @@ the app does not load `.env` files automatically. An alternative
 ## Terminal commands
 
 ```bash
-# Investigate without history or an API key.
-.venv/bin/incident-client --no-use-rag --planner demo
-
-# Compare without/with RAG using real retrieval and Python rules.
-.venv/bin/incident-compare --planner demo
-
 # Investigate without/with RAG using OpenAI and a hidden key prompt.
 .venv/bin/incident-client --no-use-rag --planner openai --ask-key
 .venv/bin/incident-client --use-rag --planner openai --ask-key
 
-# Investigate with RAG using Python rules; no API key.
+# Investigate without/with RAG or an API key.
+.venv/bin/incident-client --no-use-rag --planner demo
 .venv/bin/incident-client --use-rag --planner demo
 
 # Evaluate eight synthetic cases with and without RAG; no API key.
